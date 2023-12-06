@@ -1,16 +1,10 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.utils.data
-import numpy as np
-import os
-import torch.nn.functional as F
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
-from torch.utils.data import Subset
-from tqdm import tqdm
 from torch.autograd import Variable
-import math
+from src.model.custom_layer.swp import Swp1d
 
 
 class TNet(nn.Module):
@@ -67,13 +61,20 @@ class TNet(nn.Module):
         return x
 
 
-class PointNet(nn.Module):
+class PointNetEncoder(nn.Module):
     """
-    PointNet: Implementation of PointNet that calculates the global features.
+    PointNet: Implementation of PointNet that calculates a feature vector to be
+    used in a SymNet implementation.
     """
 
-    def __init__(self):
-        super(PointNet, self).__init__()
+    def __init__(
+            self,
+            batch_size: int,
+            sample_size: int,
+    ):
+        super(PointNetEncoder, self).__init__()
+        self.batch_size = batch_size
+        self.sample_size = sample_size
 
         self.input_transform = TNet(in_dim=3, k=3)
         self.shared_mlps = torch.nn.Sequential(
@@ -82,6 +83,7 @@ class PointNet(nn.Module):
             nn.ReLU(),
         )
 
+        self.feature_transform = TNet(in_dim=64, k=64)
         self.shared_mlps_2 = torch.nn.Sequential(
             nn.Conv1d(64, 128, 1),
             nn.BatchNorm1d(128),
@@ -90,22 +92,19 @@ class PointNet(nn.Module):
             nn.BatchNorm1d(256),
         )
 
-        self.feature_transform = TNet(in_dim=64, k=64)
+        self.swp = Swp1d(batch_size, sample_size, 1)
 
-    def forward(self, x0: torch.Tensor):
-        """
-        Forward pass
-        :param x: Tensor of shape (batch_size, 3, num_points)
-        :return:
-            local_features: Tensor of shape (batch_size, 1024, num_points)
-            global_features: Tensor of shape (batch_size, 1024)
-
+    def forward(self, x):
         """
 
-        input_trans = self.input_transform(x0)
+        :param x: Tensor of shape B x 3 x N of points.
+        :return: Tensor of shape B x 512 x N of features for each point.
+                 The first 256 features are the local features, the next 256 are global features.
+        """
+        input_trans = self.input_transform(x)
         input_trans = input_trans.reshape(-1, 3, 3)
 
-        x0 = x0.transpose(2, 1)
+        x0 = x.transpose(2, 1)
         x0 = torch.bmm(x0, input_trans)
         x0 = x0.transpose(2, 1)
 
@@ -120,6 +119,22 @@ class PointNet(nn.Module):
 
         x2 = self.shared_mlps_2(x1)
 
-        local_features = torch.cat([x1, x2], dim=1)
+        local_features = x2
+        global_features = self.swp(x2)
 
-        return local_features, input_trans, feat_trans
+        feature_vector = torch.cat(
+            (local_features, global_features.repeat(1, 1, self.sample_size)), dim=1
+        )
+
+        return feature_vector
+
+
+if __name__ == "__main__":
+    bs, sz = 16, 1024
+    encoder = PointNetEncoder(
+        batch_size=bs,
+        sample_size=sz,
+    )
+    mock_x = torch.randn(bs, 3, sz)
+    output = encoder.forward(mock_x)
+    assert output.shape == (bs, 512, sz)
