@@ -46,9 +46,9 @@ class SymmetryNet(nn.Module):
 
 class LightingSymmetryNet(lightning.LightningModule):
     def __init__(self,
-                 batch_size : int,
-                 num_points : int = 1000,
-                 n_prediction_per_point : int = 20,
+                 batch_size: int,
+                 num_points: int = 1000,
+                 n_prediction_per_point: int = 20,
                  dbscan_eps: float = 0.2,
                  dbscan_min_samples: int = 500,
                  n_jobs: int = 4,
