@@ -183,7 +183,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
 
     def predict_dataloader(self):
         return DataLoader(
-            self.test_dataset,
+            self.predict_dataset,
             collate_fn=self.collate_function,
             batch_size=self.batch_size,
             shuffle=False,

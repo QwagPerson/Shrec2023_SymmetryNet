@@ -4,8 +4,8 @@ import torch
 from torch import nn
 
 from src.model.encoder.pointnet_encoder import PointNetEncoder
-from src.model.loss import calculate_loss
-
+from src.model.loss.loss import calculate_loss
+from src.model.postprocessing import postprocess_predictions
 
 class SymmetryNet(nn.Module):
     def __init__(self, batch_size, num_points: int, n_prediction_per_point: int = 15):
@@ -26,22 +26,14 @@ class SymmetryNet(nn.Module):
         )
 
     def forward(self, x):
-        local_features, _, _ = self.encoder(x)
-        # print("local_feat", local_features.shape)
-
-        global_features = self.swp(local_features)
-        # print("global_feat", global_features.shape)
-
-        # combining global and local
-        x = torch.concat([global_features.repeat(1, 1, local_features.shape[2]), local_features], dim=1)
-        # print("features_concat", x.shape)
-
+        # print("original", x.shape)
+        x = self.encoder(x)
+        # print("encoded", x.shape)
         x = self.decoder(x)
-        # print("out_shape", x.shape)
+        # print("decoded", x.shape)
         x = x.view(self.batch_size, self.num_points, self.k, 7)
 
         m = nn.Sigmoid()
-
         x[:, :, :, -1] = m(x[:, :, :, -1])
 
         return x
@@ -99,8 +91,8 @@ class LightingSymmetryNet(lightning.LightningModule):
         points = torch.transpose(points, 1, 2).float()
 
         y_pred = self.net.forward(points)
-
-        return y_pred
+        prediction = postprocess_predictions(y_pred, n_jobs=4)
+        return prediction
 
 
 if __name__ == "__main__":
@@ -146,6 +138,8 @@ if __name__ == "__main__":
     # print(out.shape)
     # loss = calculate_loss(batch, out)
 
-    lnet = LightingSymmetryNet(BATCH_SIZE, SAMPLE_SIZE, 15)
+    lnet = LightingSymmetryNet(BATCH_SIZE, SAMPLE_SIZE, 10)
     trainer = lightning.Trainer(fast_dev_run=False, limit_val_batches=0.0, enable_progress_bar=True)
+
     trainer.fit(lnet, datamodule)
+    #trainer.predict(lnet, datamodule)
