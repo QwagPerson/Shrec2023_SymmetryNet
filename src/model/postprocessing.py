@@ -52,12 +52,14 @@ def postprocess_predictions(y_pred, eps=0.2, min_samples=500, n_jobs=1):
     bs, n, m, _ = y_pred.shape
     out_predictions = []
     for i in range(bs):
-        x = y_pred[i, :, :, :].view(n * m, -1)
+        x = y_pred[i, :, :, :].view(n * m, -1)  # nm x 3
+        # MN x 3 @ 3 x MT -> MN x MN where each cell is the distance
+        # because is the dot product
+        distances = x @ x.T
         weights = y_pred[i, :, :, -1].view(n * m)
-        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric=distance_between_planes_fn, n_jobs=n_jobs)
-        dbscan = dbscan.fit(x, sample_weight=weights)
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric="precomputed", n_jobs=n_jobs)
+        dbscan = dbscan.fit(distances, sample_weight=weights)
         core_vectors = x[dbscan.core_sample_indices_, :]
-        print(core_vectors)
         out = nms(core_vectors)
         out_predictions.append(out)
 
@@ -67,4 +69,4 @@ def postprocess_predictions(y_pred, eps=0.2, min_samples=500, n_jobs=1):
 if __name__ == "__main__":
     mock_y_pred = torch.rand(1, 10, 1, 7)
     preds = postprocess_predictions(mock_y_pred, 3, 1, n_jobs=4)
-    print(preds)
+

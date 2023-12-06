@@ -7,10 +7,15 @@ from src.model.encoder.pointnet_encoder import PointNetEncoder
 from src.model.loss.loss import calculate_loss
 from src.model.postprocessing import postprocess_predictions
 
-class SymmetryNet(nn.Module):
-    def __init__(self, batch_size, num_points: int, n_prediction_per_point: int = 15):
-        super().__init__()
 
+class SymmetryNet(nn.Module):
+    def __init__(self,
+                 batch_size,
+                 num_points: int = 1000,
+                 n_prediction_per_point: int = 15,
+
+                 ):
+        super().__init__()
 
         self.batch_size = batch_size
         self.num_points = num_points
@@ -40,13 +45,22 @@ class SymmetryNet(nn.Module):
 
 
 class LightingSymmetryNet(lightning.LightningModule):
-    def __init__(self, batch_size, num_points, n_prediction_per_point):
+    def __init__(self,
+                 batch_size : int,
+                 num_points : int = 1000,
+                 n_prediction_per_point : int = 20,
+                 dbscan_eps: float = 0.2,
+                 dbscan_min_samples: int = 500,
+                 n_jobs: int = 4,
+                 ):
         super().__init__()
         self.net = SymmetryNet(batch_size, num_points, n_prediction_per_point)
         self.loss_fn = calculate_loss
         self.batch_size = batch_size
         self.num_points = num_points
-        self.n_predictions_per_points = n_prediction_per_point
+        self.dbscan_eps = dbscan_eps
+        self.dbscan_min_samples = dbscan_min_samples
+        self.n_jobs = n_jobs
         self.save_hyperparameters(ignore=["net", "loss_fn"])
 
     def configure_optimizers(self):
@@ -91,7 +105,12 @@ class LightingSymmetryNet(lightning.LightningModule):
         points = torch.transpose(points, 1, 2).float()
 
         y_pred = self.net.forward(points)
-        prediction = postprocess_predictions(y_pred, n_jobs=4)
+        prediction = postprocess_predictions(
+            y_pred,
+            eps=self.dbscan_eps,
+            min_samples=self.dbscan_min_samples,
+            n_jobs=self.n_jobs
+        )
         return prediction
 
 
@@ -124,22 +143,5 @@ if __name__ == "__main__":
         n_workers=1,
     )
 
-    # datamodule.setup("fit")
-    # train_dataloader = datamodule.train_dataloader()
-    # batch = next(iter(train_dataloader))
-    # idxs, points, sym_planes, transforms = batch
-    # bs, np, npp = BATCH_SIZE, SAMPLE_SIZE, 23
-    # net = SymmetryNet(batch_size=bs, num_points=np, n_prediction_per_point=npp)
-    # optimizer = torch.optim.Adam(net.parameters())
-    # print(points.shape)
-    # points = torch.transpose(points, 1, 2).float()
-    # print(points.shape)
-    # out = net.forward(points)
-    # print(out.shape)
-    # loss = calculate_loss(batch, out)
-
     lnet = LightingSymmetryNet(BATCH_SIZE, SAMPLE_SIZE, 10)
     trainer = lightning.Trainer(fast_dev_run=False, limit_val_batches=0.0, enable_progress_bar=True)
-
-    trainer.fit(lnet, datamodule)
-    #trainer.predict(lnet, datamodule)

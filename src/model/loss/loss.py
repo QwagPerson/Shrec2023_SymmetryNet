@@ -6,7 +6,7 @@ from src.model.plane_utils import SymPlane
 
 # from lapsolver import solve_dense
 
-def calculate_cost_matrix(points, y_pred, y_true):
+def calculate_cost_matrix_old(points, y_pred, y_true):
     """
 
     :param points: N x 3
@@ -23,6 +23,19 @@ def calculate_cost_matrix(points, y_pred, y_true):
             cost_matrix[i, j] = pred_plane.get_angle_between_planes(true_plane)
 
     return cost_matrix
+
+
+def calculate_cost_matrix(points, y_pred, y_true):
+    """
+
+    :param points: N x 3
+    :param y_pred: K x 7
+    :param y_true: M x 6
+    :return: K x M
+    """
+    normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3])
+    normals_true = torch.nn.functional.normalize(y_true[:, 0:3])
+    return torch.acos(normals_pred @ normals_true.T)
 
 
 def create_onehot(row_idx, length):
@@ -132,3 +145,13 @@ def calculate_loss(batch, y_pred):
         curr_y_pred = y_pred[b_idx, :, :, :]
         loss += calculate_loss_aux(curr_points, curr_y_pred, curr_y_true) / bs
     return loss
+
+
+if __name__ == "__main__":
+    mock_y_pred = torch.randn(3, 7)
+    mock_y_true = torch.randn(1, 6)
+    print(torch.isclose(
+        calculate_cost_matrix_old(None, mock_y_pred, mock_y_true),
+        calculate_cost_matrix(None, mock_y_pred, mock_y_true),
+    ).all())
+
