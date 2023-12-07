@@ -46,7 +46,7 @@ class SymmetryNet(nn.Module):
 
 class LightingSymmetryNet(lightning.LightningModule):
     def __init__(self,
-                 batch_size: int,
+                 batch_size: int = 2,
                  num_points: int = 1000,
                  n_prediction_per_point: int = 20,
                  dbscan_eps: float = 0.2,
@@ -101,7 +101,7 @@ class LightingSymmetryNet(lightning.LightningModule):
                  prog_bar=True, sync_dist=True, batch_size=self.batch_size)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        idxs, points, _, transforms = batch
+        idxs, points, y_true, transforms = batch
         points = torch.transpose(points, 1, 2).float()
 
         y_pred = self.net.forward(points)
@@ -111,7 +111,7 @@ class LightingSymmetryNet(lightning.LightningModule):
             min_samples=self.dbscan_min_samples,
             n_jobs=self.n_jobs
         )
-        return prediction
+        return prediction, y_true
 
 
 if __name__ == "__main__":
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     from src.dataset.preprocessing import *
 
     DATA_PATH = "/data/shrec_2023/benchmark-train"
-    BATCH_SIZE = 5
+    BATCH_SIZE = 1
     SAMPLE_SIZE = 1000
 
     scaler = UnitSphereNormalization()

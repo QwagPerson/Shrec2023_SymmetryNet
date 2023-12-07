@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import random_split, DataLoader
 
-from src.dataset.preprocessing import Shrec2023Transform
+from src.dataset.preprocessing import Shrec2023Transform, UnitSphereNormalization, RandomSampler, ComposeTransform
 
 
 def default_symmetry_dataset_collate_fn(batch):
@@ -81,6 +81,11 @@ class SymmetryDataset(Dataset):
         return idx, points.float(), planes.float(), transform_used
 
 
+scaler = UnitSphereNormalization()
+sampler = RandomSampler(sample_size=1000, keep_copy=False)
+default_transform = ComposeTransform([scaler, sampler])
+
+
 class SymmetryDataModule(lightning.LightningDataModule):
     def __init__(
             self,
@@ -118,7 +123,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
         self.predict_data_path = predict_data_path
         self.does_predict_has_ground_truths = does_predict_has_ground_truths
         self.batch_size = batch_size
-        self.transform = transform
+        self.transform = default_transform if transform is None else transform
         self.collate_function = collate_function
         self.validation_percentage = validation_percentage
         self.shuffle = shuffle
@@ -198,9 +203,9 @@ if __name__ == "__main__":
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=3, keep_copy=True)
-    compose_transform = ComposeTransform([scaler, sampler])
+    default_transform = ComposeTransform([scaler, sampler])
 
-    dataset = SymmetryDataset(DATA_PATH, compose_transform)
+    dataset = SymmetryDataset(DATA_PATH, default_transform)
 
     example_idx, example_points, example_syms, example_tr = dataset[0]
     print("transformed", example_idx, example_points[0, :], example_syms[0, :], example_tr)
@@ -215,7 +220,7 @@ if __name__ == "__main__":
         predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
         batch_size=1,
-        transform=compose_transform,
+        transform=default_transform,
         collate_function=default_symmetry_dataset_collate_fn,
         validation_percentage=0.1,
         shuffle=True,

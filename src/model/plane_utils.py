@@ -162,6 +162,14 @@ class SymPlane:
         self.offset = - torch.dot(point, normal)
         self.confidence = None
 
+    def to_tensor(self):
+        if self.confidence is not None:
+            conf = torch.tensor(self.confidence).unsqueeze(dim=0)
+            out = torch.cat((self.normal, self.point, conf), dim=0)
+        else:
+            out = torch.cat((self.normal, self.point), dim=0)
+        return out
+
     @staticmethod
     def from_tensor(plane_tensor, confidence=None):
         out = SymPlane(plane_tensor[0:3], plane_tensor[3:6])
@@ -175,7 +183,8 @@ class SymPlane:
         return SymPlane(plane_tensor[0:3], plane_tensor[3:6], confidence)
 
     def get_distance_to_points(self, points):
-        return torch.einsum("nd, d -> n", points, self.normal) + self.offset
+        # N x 3 @ 3 x 1 -> N x 1
+        return points @ self.normal.view(3, 1) + self.offset
 
     def reflect_points(self, points):
         distances = self.get_distance_to_points(points)

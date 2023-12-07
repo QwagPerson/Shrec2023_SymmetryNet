@@ -28,6 +28,8 @@ def nms(predictions):
             predictions[idx, 0:6], predictions[idx, -1].item()
         ) for idx in range(predictions.shape[0])
     ]
+    #is_close_matrix
+
     while len(predictions) > 0:
         best_plane = predictions.pop(0)
         keep.append(best_plane)
@@ -40,6 +42,11 @@ def nms(predictions):
         for idx in reversed(remove_list):
             predictions.pop(idx)
 
+    keep = [x.to_tensor() for x in keep]
+    if len(keep) > 0:
+        keep = torch.vstack(keep)
+    else:
+        keep = torch.tensor([])
     return keep
 
 
@@ -52,10 +59,14 @@ def postprocess_predictions(y_pred, eps=0.2, min_samples=500, n_jobs=1):
     bs, n, m, _ = y_pred.shape
     out_predictions = []
     for i in range(bs):
-        x = y_pred[i, :, :, :].view(n * m, -1)  # nm x 3
+        x = y_pred[i, :, :, 0:3].view(n * m, -1)  # nm x 3
+        x = torch.nn.functional.normalize(x, dim=1)
+        # Handle edge cases where x = 1 but torch.acos returns nan because
+        # the representation of the number is bigger than one strangely
+        x = torch.clamp(x @ x.T, -1, 1)
         # MN x 3 @ 3 x MT -> MN x MN where each cell is the distance
         # because is the dot product
-        distances = x @ x.T
+        distances = torch.acos(x)
         weights = y_pred[i, :, :, -1].view(n * m)
         dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric="precomputed", n_jobs=n_jobs)
         dbscan = dbscan.fit(distances, sample_weight=weights)
@@ -67,6 +78,7 @@ def postprocess_predictions(y_pred, eps=0.2, min_samples=500, n_jobs=1):
 
 
 if __name__ == "__main__":
-    mock_y_pred = torch.rand(1, 10, 1, 7)
-    preds = postprocess_predictions(mock_y_pred, 3, 1, n_jobs=4)
+    mock_y_pred = torch.rand(3, 10, 1, 7)
+    preds = postprocess_predictions(mock_y_pred, 1, 2, n_jobs=4)
+    print(preds)
 
