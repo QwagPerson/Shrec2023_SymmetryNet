@@ -196,8 +196,15 @@ class SymPlane:
         )
 
     def is_close(self, another_plane, angle_threshold=0.0872665, distance_threshold=0.01):
+
         angle, signed_distance = self.get_distances(another_plane)
-        return angle < angle_threshold and torch.abs(signed_distance) < distance_threshold
+        print("===")
+        print(self)
+        print(another_plane)
+        print(angle, math.pi - angle, angle_threshold,  (angle < angle_threshold) | (math.pi - angle < angle_threshold), signed_distance, torch.abs(signed_distance) < distance_threshold)
+        print("===")
+        return (angle < angle_threshold) | (math.pi - angle < angle_threshold) and torch.abs(
+            signed_distance) < distance_threshold
 
     def get_distances(self, another_plane):
         angle = self.get_angle_between_planes(another_plane)

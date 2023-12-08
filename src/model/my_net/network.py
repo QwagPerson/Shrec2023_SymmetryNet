@@ -111,13 +111,14 @@ class LightingMyNet(lightning.LightningModule):
 if __name__ == "__main__":
     from src.dataset.shrec2023 import (SymmetryDataset,
                                        SymmetryDataModule,
-                                       default_symmetry_dataset_collate_fn)
+                                       default_symmetry_dataset_collate_fn,
+                                       default_symmetry_dataset_collate_fn_list_sym)
     from src.dataset.preprocessing import *
 
     DATA_PATH = "/data/shrec_2023/benchmark-train"
-    BATCH_SIZE = 2
+    BATCH_SIZE = 10
     SAMPLE_SIZE = 4096
-    COLLATE_FN = default_symmetry_dataset_collate_fn
+    COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
     compose_transform = ComposeTransform([scaler, sampler])
@@ -137,8 +138,8 @@ if __name__ == "__main__":
         n_workers=1,
     )
 
-    #test_net = LightingMyNet(20, loss_fn=calculate_loss_sde)
-    test_net = LightingMyNet.load_from_checkpoint("src/model/my_net/lightning_logs/version_10/checkpoints/epoch=106-step=107.ckpt")
+    test_net = LightingMyNet(20, loss_fn=calculate_loss) #
+    #test_net = LightingMyNet.load_from_checkpoint("lightning_logs/version_33/checkpoints/epoch=49-step=50.ckpt")
 
     datamodule.setup("predict")
 
@@ -156,20 +157,15 @@ if __name__ == "__main__":
     predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
                                     collate_fn=COLLATE_FN)
 
-    #trainer.fit(test_net, predict_dataloader)
-    batch, y_pred = trainer.predict(test_net, predict_dataloader)[0]
+    trainer.fit(test_net, predict_dataloader)
+    predictions = trainer.predict(test_net, predict_dataloader)
 
-    _, _, y_true, _ = batch
+    good_matches = 0
 
-    print(y_true[0])
-    print("==")
-    print(y_pred[0])
-    print()
+    for (batch, y_pred ) in predictions:
+        good_matches += calculate_phc(
+            batch,
+            y_pred,
+        )
 
-    phc = calculate_phc(
-        batch,
-        y_pred
-    )
-
-    print(phc)
-    print()
+    print(good_matches/(BATCH_SIZE*len(predictions)))
