@@ -103,7 +103,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
             does_predict_has_ground_truths: bool = False,
             batch_size: int = 2,
             transform: Optional[Shrec2023Transform] = None,
-            collate_function=default_symmetry_dataset_collate_fn,
+            collate_function= None,
             validation_percentage: float = 0.1,
             shuffle: bool = True,
             n_workers: int = 1,
