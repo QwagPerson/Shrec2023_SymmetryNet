@@ -187,7 +187,7 @@ class SymPlane:
         return points @ self.normal.view(3, 1) + self.offset
 
     def reflect_points(self, points):
-        distances = self.get_distance_to_points(points)
+        distances = self.get_distance_to_points(points).squeeze()
         return points - 2 * torch.einsum('p,d->pd', distances, self.normal)
 
     def get_angle_between_planes(self, another_plane):
@@ -196,8 +196,8 @@ class SymPlane:
         )
 
     def is_close(self, another_plane, angle_threshold=0.0872665, distance_threshold=0.01):
-        angle, distance = self.get_distances(another_plane)
-        return angle < angle_threshold and distance < distance_threshold
+        angle, signed_distance = self.get_distances(another_plane)
+        return angle < angle_threshold and torch.abs(signed_distance) < distance_threshold
 
     def get_distances(self, another_plane):
         angle = self.get_angle_between_planes(another_plane)

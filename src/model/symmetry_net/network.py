@@ -3,6 +3,7 @@ import lightning
 import torch
 from torch import nn
 
+from src.model.decoder.dense_prediction_decoder import DensePredictionDecoder
 from src.model.encoder.pointnet_encoder import PointNetEncoder
 from src.model.loss.loss import calculate_loss
 from src.model.postprocessing import postprocess_predictions
@@ -12,7 +13,8 @@ class SymmetryNet(nn.Module):
     def __init__(self,
                  batch_size,
                  num_points: int = 1000,
-                 n_prediction_per_point: int = 15,
+                 n_heads: int = 3,
+                 n_prediction_per_point: int = 3,
 
                  ):
         super().__init__()
@@ -20,28 +22,19 @@ class SymmetryNet(nn.Module):
         self.batch_size = batch_size
         self.num_points = num_points
         self.k = n_prediction_per_point
+        self.h = n_heads
 
         self.encoder = PointNetEncoder(batch_size, num_points)
-        self.decoder = torch.nn.Sequential(
-            nn.Conv1d(512, 128, 1),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Conv1d(128, 7 * self.k, 1),
-            nn.BatchNorm1d(7 * self.k),
+        self.decoders = nn.ModuleList(
+            [DensePredictionDecoder(self.k) for _ in range(self.h)]
         )
 
     def forward(self, x):
-        # print("original", x.shape)
         x = self.encoder(x)
-        # print("encoded", x.shape)
-        x = self.decoder(x)
-        # print("decoded", x.shape)
-        x = x.view(self.batch_size, self.num_points, self.k, 7)
-
-        m = nn.Sigmoid()
-        x[:, :, :, -1] = m(x[:, :, :, -1])
-
-        return x
+        pred_list = []
+        for decoder in self.decoders:
+            pred_list.append(decoder(x))
+        return pred_list
 
 
 class LightingSymmetryNet(lightning.LightningModule):
@@ -49,13 +42,20 @@ class LightingSymmetryNet(lightning.LightningModule):
                  batch_size: int = 2,
                  num_points: int = 1000,
                  n_prediction_per_point: int = 20,
+                 n_heads : int = 3,
                  dbscan_eps: float = 0.2,
                  dbscan_min_samples: int = 500,
                  n_jobs: int = 4,
+                 loss_fn = calculate_loss,
                  ):
         super().__init__()
-        self.net = SymmetryNet(batch_size, num_points, n_prediction_per_point)
-        self.loss_fn = calculate_loss
+        self.net = SymmetryNet(
+            batch_size=batch_size,
+            num_points=num_points,
+            n_prediction_per_point=n_prediction_per_point,
+            n_heads=n_heads,
+        )
+        self.loss_fn = loss_fn
         self.batch_size = batch_size
         self.num_points = num_points
         self.dbscan_eps = dbscan_eps
@@ -105,13 +105,8 @@ class LightingSymmetryNet(lightning.LightningModule):
         points = torch.transpose(points, 1, 2).float()
 
         y_pred = self.net.forward(points)
-        prediction = postprocess_predictions(
-            y_pred,
-            eps=self.dbscan_eps,
-            min_samples=self.dbscan_min_samples,
-            n_jobs=self.n_jobs
-        )
-        return prediction, y_true
+
+        return y_pred, y_true
 
 
 if __name__ == "__main__":
@@ -121,7 +116,7 @@ if __name__ == "__main__":
     from src.dataset.preprocessing import *
 
     DATA_PATH = "/data/shrec_2023/benchmark-train"
-    BATCH_SIZE = 1
+    BATCH_SIZE = 2
     SAMPLE_SIZE = 1000
 
     scaler = UnitSphereNormalization()
@@ -145,3 +140,5 @@ if __name__ == "__main__":
 
     lnet = LightingSymmetryNet(BATCH_SIZE, SAMPLE_SIZE, 10)
     trainer = lightning.Trainer(fast_dev_run=False, limit_val_batches=0.0, enable_progress_bar=True)
+
+    trainer.fit(lnet, datamodule)

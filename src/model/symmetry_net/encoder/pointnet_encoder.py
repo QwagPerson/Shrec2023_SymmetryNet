@@ -23,22 +23,17 @@ class TNet(nn.Module):
 
         self.shared_mlps = torch.nn.Sequential(
             nn.Conv1d(in_dim, 64, 1),
-            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Conv1d(64, 128, 1),
-            nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Conv1d(128, 1024, 1),
-            nn.BatchNorm1d(1024),
             nn.ReLU(),
         )
 
         self.linear = torch.nn.Sequential(
             nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Linear(256, k * k),
         )
@@ -79,27 +74,26 @@ class PointNetEncoder(nn.Module):
         self.input_transform = TNet(in_dim=3, k=3)
         self.shared_mlps = torch.nn.Sequential(
             nn.Conv1d(3, 64, 1),
-            nn.BatchNorm1d(64),
             nn.ReLU(),
         )
 
         self.feature_transform = TNet(in_dim=64, k=64)
         self.shared_mlps_2 = torch.nn.Sequential(
             nn.Conv1d(64, 128, 1),
-            nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Conv1d(128, 256, 1),
-            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Conv1d(256, 1024, 1),
         )
 
-        self.swp = Swp1d(batch_size, sample_size, 1)
+        #self.swp = Swp1d(batch_size, sample_size, 1)
 
     def forward(self, x):
         """
 
         :param x: Tensor of shape B x 3 x N of points.
-        :return: Tensor of shape B x 512 x N of features for each point.
-                 The first 256 features are the local features, the next 256 are global features.
+        :return: Tensor of shape B x 1088 x N of features for each point.
+                 The first 64 features are the local features, the next 1024 are global features.
         """
         input_trans = self.input_transform(x)
         input_trans = input_trans.reshape(-1, 3, 3)
@@ -118,15 +112,16 @@ class PointNetEncoder(nn.Module):
         x1 = x1.transpose(2, 1)
 
         x2 = self.shared_mlps_2(x1)
+        x2 = x2.transpose(2, 1)
 
-        local_features = x2
-        global_features = self.swp(x2)
+        local_features = x1
+        global_features = torch.max(x2, dim=1)[0]
 
-        feature_vector = torch.cat(
-            (local_features, global_features.repeat(1, 1, self.sample_size)), dim=1
-        )
+        #feature_vector = torch.cat(
+        #    (local_features, global_features.repeat(1, 1, self.sample_size)), dim=1
+        #)
 
-        return feature_vector
+        return global_features.unsqueeze(0).transpose(2, 1)
 
 
 if __name__ == "__main__":
@@ -137,4 +132,4 @@ if __name__ == "__main__":
     )
     mock_x = torch.randn(bs, 3, sz)
     output = encoder.forward(mock_x)
-    assert output.shape == (bs, 512, sz)
+    assert output.shape == (bs, 1088, sz)

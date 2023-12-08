@@ -1,7 +1,7 @@
 from sklearn.cluster import DBSCAN
 import torch
 
-from src.model.plane_utils import SymPlane
+from src.model.plane import SymPlane
 
 
 def distance_between_planes_fn(x1, x2):
@@ -58,6 +58,7 @@ def postprocess_predictions(y_pred, eps=0.2, min_samples=500, n_jobs=1):
     """
     bs, n, m, _ = y_pred.shape
     out_predictions = []
+    # Para cada batch
     for i in range(bs):
         x = y_pred[i, :, :, 0:3].view(n * m, -1)  # nm x 3
         x = torch.nn.functional.normalize(x, dim=1)
@@ -68,6 +69,8 @@ def postprocess_predictions(y_pred, eps=0.2, min_samples=500, n_jobs=1):
         # because is the dot product
         distances = torch.acos(x)
         weights = y_pred[i, :, :, -1].view(n * m)
+        # Entrenamos DBSCAN sobre todos los planos predichos
+        # Los puntos core seran los nuevos planos
         dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric="precomputed", n_jobs=n_jobs)
         dbscan = dbscan.fit(distances, sample_weight=weights)
         core_vectors = x[dbscan.core_sample_indices_, :]
