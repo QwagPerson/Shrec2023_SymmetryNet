@@ -19,6 +19,14 @@ def default_symmetry_dataset_collate_fn(batch):
     return idxs, points, sym_planes, transforms
 
 
+def default_symmetry_dataset_collate_fn_list_sym(batch):
+    idxs = torch.tensor([item[0] for item in batch])
+    points = torch.stack([item[1] for item in batch])
+    sym_planes = [item[2] for item in batch]
+    transforms = [item[3] for item in batch]
+    return idxs, points, sym_planes, transforms
+
+
 class SymmetryDataset(Dataset):
     def __init__(
             self,
@@ -95,10 +103,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
             does_predict_has_ground_truths: bool = False,
             batch_size: int = 2,
             transform: Optional[Shrec2023Transform] = None,
-            collate_function: Callable[
-                [List[Tuple[int, torch.Tensor, torch.Tensor, Shrec2023Transform]]],
-                Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List[Shrec2023Transform]]
-            ] = default_symmetry_dataset_collate_fn,
+            collate_function=default_symmetry_dataset_collate_fn,
             validation_percentage: float = 0.1,
             shuffle: bool = True,
             n_workers: int = 1,
