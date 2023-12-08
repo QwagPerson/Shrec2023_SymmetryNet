@@ -90,7 +90,7 @@ class SymmetryDataset(Dataset):
 
 
 scaler = UnitSphereNormalization()
-sampler = RandomSampler(sample_size=1000, keep_copy=False)
+sampler = RandomSampler(sample_size=8192, keep_copy=False)
 default_transform = ComposeTransform([scaler, sampler])
 
 
@@ -129,7 +129,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
         self.does_predict_has_ground_truths = does_predict_has_ground_truths
         self.batch_size = batch_size
         self.transform = default_transform if transform is None else transform
-        self.collate_function = collate_function
+        self.collate_function = default_symmetry_dataset_collate_fn_list_sym if transform is None else transform
         self.validation_percentage = validation_percentage
         self.shuffle = shuffle
         self.n_workers = n_workers

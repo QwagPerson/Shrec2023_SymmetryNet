@@ -54,7 +54,10 @@ class LightingMyNet(lightning.LightningModule):
         self.net = MyNet(
             n_heads=n_heads,
         )
-        self.loss_fn = loss_fn
+        if loss_fn is not None:
+            self.loss_fn = loss_fn
+        else:
+            self.loss_fn = calculate_loss
         self.save_hyperparameters(ignore=["net", "loss_fn"])
 
     def configure_optimizers(self):
