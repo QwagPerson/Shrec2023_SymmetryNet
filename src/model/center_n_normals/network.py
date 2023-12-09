@@ -7,53 +7,57 @@ from torch.utils.data import Subset, DataLoader
 
 from src.metrics.mAP import get_mean_average_precision
 from src.metrics.phc import get_matches_amount, get_phc
-from src.model.my_net.decoder.prediction_head import PredictionHead
-from src.model.my_net.encoder.pointnet_encoder import PointNetEncoder
-from src.model.my_net.loss.plane_nearness import calculate_loss
-from src.model.my_net.loss.symmetry_distance_error import calculate_loss_sde
+from src.model.center_n_normals.decoder.center_prediction_head import CenterPredictionHead
+from src.model.center_n_normals.decoder.normal_prediction_head import NormalPredictionHead
+from src.model.center_n_normals.encoder.pointnet_encoder import PointNetEncoder
+from src.model.center_n_normals.loss.plane_nearness import calculate_loss
+from src.model.center_n_normals.loss.symmetry_distance_error import calculate_loss_sde
 
 
-class MyNet(nn.Module):
+class CenterNNormalsNet(nn.Module):
     def __init__(
             self,
-            n_heads: int = 3,
+            amount_of_normals_predicted: int = 3,
     ):
         super().__init__()
 
-        self.h = n_heads
+        self.h = amount_of_normals_predicted
 
         self.encoder = PointNetEncoder()
-        self.prediction_heads = nn.ModuleList(
-            [PredictionHead() for _ in range(self.h)]
+        self.normal_prediction_heads = nn.ModuleList(
+            [NormalPredictionHead() for _ in range(self.h)]
         )
+
+        self.center_prediction_head = CenterPredictionHead()
 
     def forward(self, x):
         batch_size = x.shape[0]
-        if x.isnan().any():
-            print("AAAAAAAAAAAAAAA")
-        x1 = self.encoder(x)
-        if x1.isnan().any():
-            print("BBB")
-        pred_list = []
-        for head in self.prediction_heads:
-            pred_list.append(head(x1))
-        predictions = torch.vstack(pred_list).view(batch_size, self.h, 7)
-        if predictions.isnan().any():
-            print("CCC")
+        normal_list = []
+
+        x = self.encoder(x)
+
+        for head in self.normal_prediction_heads:
+            normal_list.append(head(x))
+
+        center = self.center_prediction_head(x).unsqueeze(dim=1).repeat(1, self.h, 1)
+        normals = torch.vstack(normal_list).view(batch_size, self.h, 4)
+
+        predictions = torch.concat((center, normals), dim=2)
+
         predictions[:, :, -1] = torch.sigmoid(predictions[:, :, -1])
         predictions[:, :, 0:3] = torch.nn.functional.normalize(predictions[:, :, 0:3].clone(), dim=2)
 
         return predictions
 
 
-class LightingMyNet(lightning.LightningModule):
+class LightingCenterNNormalsNet(lightning.LightningModule):
     def __init__(self,
-                 n_heads: int = 3,
+                 amount_of_normals_predicted: int = 3,
                  loss_fn=None,
                  ):
         super().__init__()
-        self.net = MyNet(
-            n_heads=n_heads,
+        self.net = CenterNNormalsNet(
+            amount_of_normals_predicted=amount_of_normals_predicted,
         )
         if loss_fn is not None:
             self.loss_fn = loss_fn
@@ -119,7 +123,7 @@ if __name__ == "__main__":
     from src.dataset.preprocessing import *
 
     DATA_PATH = "/data/shrec_2023/benchmark-train"
-    BATCH_SIZE = 32
+    BATCH_SIZE = 3
     SAMPLE_SIZE = 1024
     COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
     scaler = UnitSphereNormalization()
@@ -141,9 +145,9 @@ if __name__ == "__main__":
         n_workers=1,
     )
 
-    # test_net = LightingMyNet(20, loss_fn=calculate_loss)  #
-    mpath = "modelos_interesantes/my_net/version_9/checkpoints/epoch_epoch=30_val_loss=0.47_train_loss=0.47.ckpt"
-    test_net = LightingMyNet.load_from_checkpoint(mpath)
+    test_net = LightingCenterNNormalsNet(20, loss_fn=calculate_loss)  #
+    mpath = ""
+    #test_net = CenterNNormalsNet.load_from_checkpoint(mpath)
 
     datamodule.setup("predict")
 
@@ -157,16 +161,16 @@ if __name__ == "__main__":
             EarlyStopping("train_loss", patience=10, verbose=True)
         ]
     )
-    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(2048)])
+    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(BATCH_SIZE)])
     predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
                                     collate_fn=COLLATE_FN)
 
-    #trainer.fit(test_net, predict_dataloader)
+    trainer.fit(test_net, predict_dataloader)
     predictions = trainer.predict(test_net, predict_dataloader)
 
-    print(get_phc(predictions, eps=3))
+    print(get_phc(predictions))
 
-    print(get_mean_average_precision(predictions, eps=3))
+    print(get_mean_average_precision(predictions))
 
 
 

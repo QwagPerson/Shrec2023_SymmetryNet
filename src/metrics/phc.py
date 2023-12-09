@@ -1,18 +1,8 @@
-import torch
-
+from src.metrics.utils import get_diagonals_length
 from src.utils.plane import SymPlane
 
 
-def get_diagonals_length(points: torch.Tensor):
-    """
-    :param points: Shape N x 3
-    :return: length Shape 1
-    """
-    diagonal = points.max(dim=0).values - points.min(dim=0).values
-    return torch.linalg.norm(diagonal)
-
-
-def phc_match(points, y_pred, y_true, eps, theta):
+def calculate_matching(points, y_pred, y_true, eps, theta):
     """
 
     :param points: N x 3
@@ -41,22 +31,42 @@ def phc_match(points, y_pred, y_true, eps, theta):
     return matched
 
 
-def calculate_phc(batch, y_pred_list, eps=0.01, theta=0.0174533):
+def get_matches_amount(batch, y_pred_list, eps, theta):
     """
     :param batch:
-        :param batched_points: B x N x 3
-        :param y_true_list: List[B] -> K x 6
+        batched_points: B x N x 3
+        y_true_list: List[B] -> K x 6
     :param y_pred_list: List[B] -> M x 7
     :param theta:
     :param eps:
     :return: float
     """
     _, batched_points, y_true_list, _ = batch
-    b = len(y_true_list)
-    good_matches = 0
-    for idx in range(b):
+    batch_size = len(y_true_list)
+    matches = 0
+    for idx in range(batch_size):
         points = batched_points[idx]
         y_true = y_true_list[idx]
         y_pred = y_pred_list[idx]
-        good_matches += phc_match(points, y_pred, y_true, eps, theta)
-    return good_matches
+        matches += calculate_matching(points, y_pred, y_true, eps, theta)
+    return matches / batch_size
+
+
+def get_phc(predictions, eps=0.01, theta=0.0174533):
+    """
+    List of predictions
+    :param eps: Percentage of diagonal. Controls distance Threshold
+    :param theta: Percentage of Angle. Control angle Threshold
+    :param predictions: List[P] where
+        it contains the (batch, y_pred) that depends of batch_size
+    :return:
+    """
+    total_matches = 0.0
+    for (batch, y_pred) in predictions:
+        total_matches += get_matches_amount(
+            batch,
+            y_pred,
+            eps,
+            theta
+        )
+    return total_matches / len(predictions)

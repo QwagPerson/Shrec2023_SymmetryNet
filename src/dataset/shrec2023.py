@@ -90,7 +90,7 @@ class SymmetryDataset(Dataset):
 
 
 scaler = UnitSphereNormalization()
-sampler = RandomSampler(sample_size=8192, keep_copy=False)
+sampler = RandomSampler(sample_size=1024, keep_copy=False)
 default_transform = ComposeTransform([scaler, sampler])
 
 

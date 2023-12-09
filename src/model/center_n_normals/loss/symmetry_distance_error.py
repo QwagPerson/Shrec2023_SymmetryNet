@@ -39,24 +39,45 @@ def calculate_cost_matrix_sde(points, y_pred, y_true):
                     dim=0
                 )
             ).sum()
-            if cost_matrix[i, j].isnan().any():
-                print("Got cost matrix nan with planes:")
-                print("pred", pred_plane)
-                print("true", true_plane)
 
     return cost_matrix
 
 
-def create_onehot(row_idx, length, device="cpu"):
+def get_sde(points, pred_plane, true_plane):
+    pred_plane = SymPlane.from_tensor(pred_plane)
+    true_plane = SymPlane.from_tensor(true_plane)
+    return torch.norm(
+        true_plane.reflect_points(points) - pred_plane.reflect_points(points),
+        dim=0
+    ).mean()
+
+
+def calculate_sde_loss(points, y_pred, y_true):
+    """
+
+    :param y_pred: M x 6
+    :param y_true: M x 6
+    :return:
+    """
+    m = y_pred.shape[0]
+    loss = torch.tensor([0.0], device=y_pred.device)
+    for i in range(m):
+        loss += get_sde(points, y_pred[i], y_true[i])
+    return loss / m
+
+
+def create_onehot(row_idx, length):
     """
 
     :param row_idx: Array of index of matches
     :param length: length of the vector
     :return:
     """
-    out = torch.zeros(length, device=device)
+    out = torch.zeros(length)
     out[row_idx] = 1
     return out
+
+    pass
 
 
 def get_optimal_assignment(points, y_pred, y_true):
@@ -68,13 +89,13 @@ def get_optimal_assignment(points, y_pred, y_true):
     :return:
     """
     m = y_pred.shape[0]
-    cost_matrix = calculate_cost_matrix_sde(points, y_pred.detach().clone(), y_true)
+    cost_matrix = calculate_cost_matrix_sde(points, y_pred, y_true)
     try:
         row_id, col_id = linear_sum_assignment(cost_matrix.detach().numpy())
     except Exception as e:
-        print(e)
         print(cost_matrix.isnan().any())
-    c_hat = create_onehot(row_id, m, device=points.device)
+        raise e
+    c_hat = create_onehot(row_id, m)
     y_pred = y_pred[row_id, :]
     return c_hat, y_pred
 
@@ -89,12 +110,8 @@ def calculate_angle_loss(y_pred, y_true):
     normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)  # M x 3
     normals_true = torch.nn.functional.normalize(y_true[:, 0:3], dim=1)  # M x 3
 
-    # cos(theta) = n_1 . n_2.T
-    # => if n_1 == n_2 => cos(theta) = 1
-    # or if n_1 == -n_2 => cos(Theta) = -1
-    # Min theta <=> Min 1 - |cos(Theta)| <=> 1 - |n_1 . n_2.T|
-    cos_angle = 1 - torch.abs(normals_true @ normals_pred.T)
-    return cos_angle.min(dim=0).values.mean()
+    angles = torch.acos(torch.clamp(normals_true @ normals_pred.T, -1, 1))
+    return angles.min(dim=0).values.mean()
 
 
 def calculate_distance_loss(y_pred, y_true):
@@ -107,7 +124,7 @@ def calculate_distance_loss(y_pred, y_true):
     points_pred = y_pred[:, 3:6]
     points_true = y_true[:, 3:6]
 
-    distances = torch.norm(points_true - points_pred, p=1, dim=0)
+    distances = torch.norm(points_true - points_pred, p=2, dim=0)
 
     return distances.mean()
 
@@ -128,23 +145,16 @@ def calculate_loss_aux(points, y_pred, y_true):
 
     confidence_loss = nn.functional.binary_cross_entropy(confidences, c_hat)
 
-    angle_loss = calculate_angle_loss(matched_y_pred[:, 0:6], y_true)
+    sde_loss = calculate_sde_loss(points, matched_y_pred[:, 0:6], y_true)
 
     distance_loss = calculate_distance_loss(matched_y_pred[:, 0:6], y_true)
-    loss = confidence_loss + angle_loss + distance_loss
-    if y_pred.isnan().any():
-        print("A head has nan")
-        for i in range(y_pred.shape[0]):
-            head_val = y_pred[i]
-            if head_val.isnan().any():
-                print(f"It is head number {i}!")
 
-    if loss.isnan().any():
-        print("conf_loss", confidence_loss, "angle_loss", angle_loss, "distance_loss", distance_loss)
-    return loss
+    angle_loss = calculate_angle_loss(matched_y_pred[:, 0:6], y_true)
+
+    return confidence_loss + sde_loss + angle_loss + distance_loss
 
 
-def calculate_loss(batch, y_pred):
+def calculate_loss_sde(batch, y_pred):
     """
     :param batch: Tuple of idxs, points, sym_planes, transforms
         idxs : tensor of shape B
@@ -166,7 +176,7 @@ def calculate_loss(batch, y_pred):
 
 
 if __name__ == "__main__":
-    out = calculate_loss(
+    out = calculate_loss_sde(
         (None, torch.ones(1, 10, 3), [torch.ones(2, 6)], None),
         torch.ones(1, 3, 7)
     )
