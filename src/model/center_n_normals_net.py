@@ -13,6 +13,7 @@ from src.model.decoders.normal_prediction_head import NormalPredictionHead
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 from src.model.losses.discrete_prediction_loss import calculate_loss
 from src.model.losses.utils import calculate_cost_matrix_normals
+from src.model.postprocessing.utils import reverse_transformation
 
 
 class CenterNNormalsNet(nn.Module):
@@ -45,7 +46,7 @@ class CenterNNormalsNet(nn.Module):
         normals = torch.vstack(normal_list).view(batch_size, self.h, 4)  # Normal (3) + Confidence(1)
 
         predictions = torch.concat((normals, center), dim=2)
-        reorder = torch.LongTensor([0, 1, 2, 4, 5, 6, 3], device=predictions.device)
+        reorder = torch.tensor([0, 1, 2, 4, 5, 6, 3], device=predictions.device).long()
 
         predictions = predictions[:, :, reorder]
 
@@ -149,11 +150,21 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         mean_avg_precision = get_mean_average_precision(prediction)
         phc = get_phc(prediction)
 
+        unscaled_batch, unscaled_y_pred = reverse_transformation(batch, y_pred)
+
+        unscaled_prediction = [(unscaled_batch, unscaled_y_pred)]
+        unscaled_mean_avg_precision = get_mean_average_precision(unscaled_prediction)
+        unscaled_phc = get_phc(unscaled_prediction)
+
         self.log("test_loss", loss, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
         self.log("test_MAP", mean_avg_precision, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
         self.log("test_PHC", phc, on_step=False, on_epoch=True,
+                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+        self.log("unscaled_test_MAP", unscaled_mean_avg_precision, on_step=False, on_epoch=True,
+                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+        self.log("unscaled_test_PHC", unscaled_phc, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -222,7 +233,7 @@ if __name__ == "__main__":
     predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
                                     collate_fn=COLLATE_FN)
 
-    trainer.fit(test_net, predict_dataloader)
+    trainer.test(test_net, predict_dataloader)
     predictions = trainer.predict(test_net, predict_dataloader)
 
     batch, y_pred = predictions[0]

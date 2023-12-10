@@ -79,5 +79,5 @@ data:
   collate_function: null
   validation_percentage: 0.2
   shuffle: true
-  n_workers: 0
+  n_workers: 7
 ckpt_path: null

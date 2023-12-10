@@ -69,7 +69,7 @@ def get_optimal_assignment(points, y_pred, y_true, method):
     """
     m = y_pred.shape[0]
     cost_matrix = method(points, y_pred.detach().clone(), y_true)
-    row_id, col_id = linear_sum_assignment(cost_matrix.detach().numpy())
+    row_id, col_id = linear_sum_assignment(cost_matrix.cpu().detach().numpy())
     c_hat = create_onehot(row_id, m, device=points.device)
     y_pred = y_pred[row_id, :]
     return c_hat, y_pred

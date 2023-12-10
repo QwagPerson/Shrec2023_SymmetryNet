@@ -121,6 +121,7 @@ def get_mean_average_precision(predictions, eps=0.01, theta=0.0174533):
         it contains the (batch, y_pred) that depends of batch_size
     :return:
     """
+    device_used = predictions[0][1].device
     average_precisions_per_batch = []
     for (batch, y_pred) in predictions:
         average_precisions_per_batch.append(torch.tensor(get_average_precision(
@@ -128,6 +129,6 @@ def get_mean_average_precision(predictions, eps=0.01, theta=0.0174533):
             y_pred,
             eps,
             theta
-        )))
-    average_precision_tensor = torch.hstack(average_precisions_per_batch)
+        ), device=device_used))
+    average_precision_tensor = torch.hstack(average_precisions_per_batch).to(device_used)
     return average_precision_tensor.mean()
