@@ -156,8 +156,11 @@ def get_angle(a, b, radians=True):
 
 
 class SymPlane:
-    def __init__(self, normal, point, confidence=None):
-        self.normal = torch.nn.functional.normalize(normal, dim=0)
+    def __init__(self, normal, point, confidence=None, normalize=False):
+        if normalize:
+            self.normal = torch.nn.functional.normalize(normal, dim=0)
+        else:
+            self.normal = normal
         self.point = point
         self.offset = - torch.dot(point, normal)
         self.confidence = None
@@ -171,8 +174,8 @@ class SymPlane:
         return out
 
     @staticmethod
-    def from_tensor(plane_tensor, confidence=None):
-        out = SymPlane(plane_tensor[0:3], plane_tensor[3:6])
+    def from_tensor(plane_tensor, confidence=None, normalize=False):
+        out = SymPlane(plane_tensor[0:3], plane_tensor[3:6], normalize=normalize)
         if confidence is not None:
             out.confidence = confidence
         return out
