@@ -86,9 +86,14 @@ class UnitSphereNormalization(Shrec2023Transform):
         symmetries[:, 3:6] = (symmetries[:, 3:6] * self.farthest_distance) + self.centroid
         return symmetries
 
+    def _handle_device(self, device):
+        self.centroid=self.centroid.to(device)
+        self.farthest_distance=self.centroid.to(device)
+
     def inverse_transform(self, idx: int, points: torch.Tensor, symmetries: Optional[torch.Tensor]) \
             -> (int, torch.Tensor, torch.Tensor):
         self._validate_self_attributes_are_not_none()
+        self._handle_device(points.device)
         points = self._inverse_normalize_points(points)
         if symmetries is not None:
             symmetries = self._inverse_normalize_planes(symmetries)

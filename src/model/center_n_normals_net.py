@@ -166,6 +166,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
         self.log("unscaled_test_PHC", unscaled_phc, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+        return batch, y_pred
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         idxs, points, y_true, transforms = batch
@@ -216,7 +217,6 @@ if __name__ == "__main__":
         print_losses=False)  #
     # mpath = "modelos_interesantes/simple_net/version_9/checkpoints/epoch_epoch=30_val_loss=0.47_train_loss=0.47.ckpt"
     # test_net = LightingMyNet.load_from_checkpoint(mpath)
-
     datamodule.setup("predict")
     datamodule.setup("fit")
 
@@ -229,11 +229,11 @@ if __name__ == "__main__":
             EarlyStopping("train_loss", patience=10, verbose=True)
         ]
     )
-    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(EXAMPLES_USED)])
+    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(1, EXAMPLES_USED)])
     predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
                                     collate_fn=COLLATE_FN)
 
-    trainer.test(test_net, predict_dataloader)
+    trainer.fit(test_net, predict_dataloader)
     predictions = trainer.predict(test_net, predict_dataloader)
 
     batch, y_pred = predictions[0]

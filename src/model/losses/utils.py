@@ -88,7 +88,11 @@ def calculate_angle_loss(y_pred, y_true):
     # => if n_1 == n_2 => cos(theta) = 1
     # or if n_1 == -n_2 => cos(Theta) = -1
     # Min theta <=> Min 1 - |cos(Theta)| <=> 1 - |n_1 . n_2.T|
-    cos_angle = 1 - torch.abs(normals_true @ normals_pred.T)
+    cos_angle = 1 - torch.abs(normals_true @ normals_pred.T) # M x M
+    # We take the min of cos_angle because it is expected that the min value is
+    # the one corresponding to the assigned plane, this is not a 100% certain but
+    # it is expected because this plane was assigned to that true plane because of a reason
+    # anyways this is fast but unreadable as #!=$@ idk how i would put it better tho
     return cos_angle.min(dim=0).values.mean()
 
 

@@ -42,7 +42,7 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
     DATA_PATH = args["data_path"]
     OUTPUT_PATH = args["output_path"]
-    MODEL_PATH =args["model_path"]
+    MODEL_PATH = args["model_path"]
     N_WORKERS = args["n_workers"]
 
     model = LightingCenterNNormalsNet.load_from_checkpoint(MODEL_PATH)
