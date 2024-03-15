@@ -24,6 +24,7 @@ notebooks -> Just a simple notebook exploring the obtained results.
 scripts -> Holds different utilities to explore and evaluate the model.
 
 src -> Holds the main code of the project order by:
+
     - dataset -> Holds the Pytorch and Pytorch Lighting code to create the dataset and the datamodule.
     - metrics -> Holds my code to calculate the metrics of the models while training. WARNING this code does not seems to match the metrics calculated by the evaluation script.
     - model   -> the model definition ordered in different small parts.
