@@ -14,7 +14,7 @@ def calculate_cost_matrix_normals(points, y_pred, y_true):
     normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3])
     normals_true = torch.nn.functional.normalize(y_true[:, 0:3])
 
-    return 1 - torch.abs(normals_true @ normals_pred.T)
+    return 1 - torch.abs(normals_pred @ normals_true.T)
 
 
 def calculate_cost_matrix_sde(points, y_pred, y_true):

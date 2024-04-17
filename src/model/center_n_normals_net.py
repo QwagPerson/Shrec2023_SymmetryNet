@@ -12,7 +12,7 @@ from src.model.decoders.center_prediction_head import CenterPredictionHead
 from src.model.decoders.normal_prediction_head import NormalPredictionHead
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 from src.model.losses.discrete_prediction_loss import calculate_loss
-from src.model.losses.utils import calculate_cost_matrix_normals
+from src.model.losses.utils import calculate_cost_matrix_normals, calculate_cost_matrix_sde
 from src.model.postprocessing.utils import reverse_transformation
 
 
@@ -189,14 +189,14 @@ if __name__ == "__main__":
     from src.dataset.preprocessing import *
 
     DATA_PATH = "/data/shrec_2023/benchmark-train"
-    BATCH_SIZE = 1
+    BATCH_SIZE = 9
     EXAMPLES_USED = 10
-    SAMPLE_SIZE = 1024
+    SAMPLE_SIZE = 10_000
     COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
-    compose_transform = ComposeTransform([scaler])
+    compose_transform = ComposeTransform([sampler, scaler])
 
     dataset = SymmetryDataset(DATA_PATH, compose_transform)
     datamodule = SymmetryDataModule(
@@ -214,6 +214,7 @@ if __name__ == "__main__":
 
     test_net = LightingCenterNNormalsNet(
         27, use_bn=False,
+        cost_matrix_method=calculate_cost_matrix_sde,
         print_losses=False)  #
     # mpath = "modelos_interesantes/simple_net/version_9/checkpoints/epoch_epoch=30_val_loss=0.47_train_loss=0.47.ckpt"
     # test_net = LightingMyNet.load_from_checkpoint(mpath)
