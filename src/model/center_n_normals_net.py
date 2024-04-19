@@ -1,10 +1,17 @@
+#!/usr/bin/env python3
 from typing import Callable
+
+import random
 
 import lightning
 import torch
-from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from torch import nn
 from torch.utils.data import Subset, DataLoader
+
+if __name__ == "__main__":
+	import sys
+	sys.path.insert(0, '../..')
 
 from src.metrics.mAP import get_mean_average_precision
 from src.metrics.phc import get_phc
@@ -188,33 +195,40 @@ if __name__ == "__main__":
                                        default_symmetry_dataset_collate_fn_list_sym)
     from src.dataset.preprocessing import *
 
-    DATA_PATH = "/data/shrec_2023/benchmark-train"
-    BATCH_SIZE = 9
-    EXAMPLES_USED = 10
-    SAMPLE_SIZE = 10_000
+    #DATA_PATH = "/data/shrec_2023/benchmark-train"
+    DATA_PATH = "/tmp/ramdrive/benchmark-train-14400"
+    TEST_PATH = "/tmp/ramdrive/benchmark-train-14400"
+    #BATCH_SIZE = 32
+    BATCH_SIZE = 32
+    PREDICT_SAMPLES = 64
+    #SAMPLE_SIZE = 10_000
+    SAMPLE_SIZE = 14400
     COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
+    NUM_WORKERS = 15
 
     scaler = UnitSphereNormalization()
-    sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
-    compose_transform = ComposeTransform([sampler, scaler])
+    #sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
+    #compose_transform = ComposeTransform([sampler, scaler])
+    compose_transform = scaler
 
     dataset = SymmetryDataset(DATA_PATH, compose_transform)
     datamodule = SymmetryDataModule(
         train_data_path=DATA_PATH,
-        test_data_path=DATA_PATH,
-        predict_data_path=DATA_PATH,
+        test_data_path=TEST_PATH,
+        predict_data_path=TEST_PATH,
         does_predict_has_ground_truths=True,
         batch_size=BATCH_SIZE,
         transform=compose_transform,
         collate_function=COLLATE_FN,
-        validation_percentage=0.9999,
+        validation_percentage=0.2,
         shuffle=True,
-        n_workers=1,
+        n_workers=NUM_WORKERS,
     )
 
     test_net = LightingCenterNNormalsNet(
-        27, use_bn=False,
-        cost_matrix_method=calculate_cost_matrix_sde,
+        amount_of_normals_predicted=27,
+        use_bn=False, sde_loss_constant=0.1,
+        cost_matrix_method=calculate_cost_matrix_normals,
         print_losses=False)  #
     # mpath = "modelos_interesantes/simple_net/version_9/checkpoints/epoch_epoch=30_val_loss=0.47_train_loss=0.47.ckpt"
     # test_net = LightingMyNet.load_from_checkpoint(mpath)
@@ -227,30 +241,66 @@ if __name__ == "__main__":
         enable_progress_bar=True,
         max_epochs=500,
         callbacks=[
-            EarlyStopping("train_loss", patience=10, verbose=True)
+            EarlyStopping("train_loss", patience=100, mode="min", verbose=True),
+            #EarlyStopping("val_loss"  , patience=100, mode="min", verbose=True),
+            ModelCheckpoint(monitor='val_loss'  , save_top_k=10, mode='min', verbose=True, filename='epoch_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}'),
+            ModelCheckpoint(monitor='train_loss', save_top_k=10, mode='min', verbose=True, filename='epoch_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}'),
+            ModelCheckpoint(monitor='val_MAP'   , save_top_k=10, mode='max', verbose=True, filename='epoch_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}'),
+            ModelCheckpoint(monitor='train_MAP' , save_top_k=10, mode='max', verbose=True, filename='epoch_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}'),
         ]
     )
-    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(1, EXAMPLES_USED)])
-    predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
-                                    collate_fn=COLLATE_FN)
 
-    trainer.fit(test_net, predict_dataloader)
+    #training_dataset = Subset(datamodule.training_dataset, [i for i in range(1, EXAMPLES_USED)])
+    print(f'Training dataset has: {len(datamodule.train_dataset) = } batches')
+    #train_dataloader = DataLoader(datamodule.train_dataset, batch_size=BATCH_SIZE,
+    #                                collate_fn=COLLATE_FN, num_workers=NUM_WORKERS)
+    train_dataloader = datamodule.train_dataloader()
+    print(f'Train dataloader has: {len(train_dataloader) = } batches')
+    val_dataloader = datamodule.val_dataloader()
+    print(f'Valid dataloader has: {len(val_dataloader) = } batches')
+
+    print(f'Predict dataset has: {len(datamodule.predict_dataset) = } batches')
+    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(1, PREDICT_SAMPLES)])
+    print(f'Predict dataset has: {len(predict_dataset) = } batches')
+    predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
+                                    collate_fn=COLLATE_FN, num_workers=NUM_WORKERS)
+    print(f'Predict dataloader has: {len(predict_dataloader) = } batches')
+
+    #trainer.fit(test_net, predict_dataloader)
+    #trainer.fit(test_net, train_dataloader, val_dataloader)
+
+    #test_model  = '../../exp/checkpoints/epoch=37_train_loss_epoch=1.52210_val_MAP=0.39_train_MAP=0.38.ckpt'
+    test_model  = '/mnt/btrfs-data/venvs/ml-tutorials/repos/pointnet/Shrec2023_SymmetryNet-orig/epoch_epoch=1_val_MAP=0.56_train_MAP=0.46.ckpt'
+    test_net    = LightingCenterNNormalsNet.load_from_checkpoint(test_model)
     predictions = trainer.predict(test_net, predict_dataloader)
 
-    batch, y_pred = predictions[0]
+    print(f'Predictions: {len(predictions)}')
+    pr_idx = random.randint(0, len(predictions) - 1)
+    print(f'Taking batch no. {pr_idx}')
+    batch, y_pred = predictions[pr_idx]
     _, _, y_true, _ = batch
 
-    print(y_true[0])
-    print(y_pred[0])
+    torch.set_printoptions  (linewidth=200)
+    torch.set_printoptions  (precision=3)
+    torch.set_printoptions  (sci_mode=False)
 
-    print("Metricas normales")
+    print(f"Batch size: {len(y_true)}")
+    idx = random.randint(0, len(y_true) - 1)
+    print(f"Comparing element: {idx} in batch...")
+    gt = y_true[idx]
+    pr = y_pred[idx][0:gt.shape[0]]
+
+    print(f'Ground truth:\n{gt}')
+    print(f'Prediction  :\n{pr}')
+
+    print("Normal metrics")
     print("PHC", get_phc(predictions).item())
     print("MAP", get_mean_average_precision(predictions).item())
 
-    print("Match normales")
+    print("Normals matching")
     print("PHC", get_phc(predictions, eps=1).item())
     print("MAP", get_mean_average_precision(predictions, eps=1).item())
 
-    print("Match centros")
+    print("Center matching")
     print("PHC", get_phc(predictions, theta=10).item())
     print("MAP", get_mean_average_precision(predictions, theta=10).item())

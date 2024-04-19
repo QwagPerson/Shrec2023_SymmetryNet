@@ -72,10 +72,14 @@ def calculate_loss_aux(
     total_loss = confidence_loss + sde_loss + angle_loss + distance_loss
 
     if show_loss_log:
-        print(f"Conf_loss {(confidence_loss / total_loss).item():.2f} | {confidence_loss.item()}")
-        print(f"sde_loss {(sde_loss / total_loss).item():.2f} | {sde_loss.item()}")
-        print(f"angle_loss {(angle_loss / total_loss).item():.2f} | {angle_loss.item()}")
-        print(f"distance_loss {(distance_loss / total_loss).item():.2f} | {distance_loss.item()}")
+        torch.set_printoptions  (linewidth=200)
+        torch.set_printoptions  (precision=3)
+        torch.set_printoptions  (sci_mode=False)
+        print(f"conf_loss    : {(confidence_loss / total_loss).item():.2f} | {confidence_loss.item()}")
+        print(f"sde_loss     : {(sde_loss / total_loss).item():.2f} | {sde_loss.item()}")
+        print(f"angle_loss   : {(angle_loss / total_loss).item():.2f} | {angle_loss.item()}")
+        print(f"distance_loss: {(distance_loss / total_loss).item():.2f} | {distance_loss.item()}")
+        print(f"Total_loss   : {total_loss.item():.2f}")
 
     return total_loss
 
@@ -99,15 +103,30 @@ def calculate_loss(
     :return:
     """
     _, points, y_true, _ = batch
-    loss = torch.tensor([0.0], device=points.device)
-    bs = points.shape[0]
+    bs     = points.shape[0]
+    loss   = torch.tensor([0.0], device=points.device)
+    losses = torch.zeros(bs, device=points.device)
+
+    if show_losses or True:
+        torch.set_printoptions  (linewidth=200)
+        torch.set_printoptions  (precision=3)
+        torch.set_printoptions  (sci_mode=False)
+        print(f"Points shape {points.shape}")
+        print(f"Y_true shape {len(y_true)} - {y_true[0].shape = }")
+        print(f"Y_pred shape {len(y_pred)} - {y_pred.shape = }")
+
     for b_idx in range(bs):
         curr_points = points[b_idx]
         curr_y_true = y_true[b_idx]
         curr_y_pred = y_pred[b_idx]
-        loss += calculate_loss_aux(
+        losses[b_idx] = calculate_loss_aux(
             curr_points, curr_y_pred, curr_y_true,
             cost_matrix_method, weights,
             show_losses
         )
-    return loss / bs
+        if show_losses or losses[b_idx].item() >= 1. or curr_y_true.shape[0] >= 7:
+            print(f"{[b_idx]} Y_true\n{curr_y_true}")
+            print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
+            print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
+    loss = torch.mean(losses)
+    return loss # / bs
