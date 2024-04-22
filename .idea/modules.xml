@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/SymmetryNet.iml" filepath="$PROJECT_DIR$/.idea/SymmetryNet.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../modelos/center_n_normals_mid_batch_looong_trainng/.idea/center_n_normals_mid_batch_looong_trainng.iml" filepath="$PROJECT_DIR$/../modelos/center_n_normals_mid_batch_looong_trainng/.idea/center_n_normals_mid_batch_looong_trainng.iml" />
     </modules>
   </component>
 </project>
