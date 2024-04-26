@@ -67,7 +67,7 @@ class SymmetryDataset(Dataset):
             raise IndexError(f"Invalid index: {idx}, dataset size is: {len(self.flist)}")
         fname = self.flist[idx]
         if self.debug:
-           print(f'Found file: {fname.name}')
+           print(f'Opening file: {fname.name}')
         return fname, str(fname).replace('.xz', '-sym.txt')
 
     def read_points(self, idx: int) -> torch.Tensor:
@@ -123,23 +123,26 @@ class SymmetryDataset(Dataset):
             df['type'] = np.where(df['type'] == 'plane', 0, 1)
             if self.debug:
                 print(f'Converted dataframe:\n{df}')
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+            '''
+            # TODO: enable these lines throw away some information present in the new version of the dataset
+            if (df['type'] == 1).any() == True:          # there is an axial symmetry
+                df = df[df['type'] != 1]                 # throw away axial symmetry rows
+                df = df.drop('theta', axis=1)            # throw away last column == angles
+                n_planes = n_planes - 1                  # decrease the number of reported symmetries
+            '''
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+            df = df.drop('type', axis=1)                 # throw away 1st column  == plane/axis flags
+            if self.debug:
+                print(f'Resized dataframe:\n{df}')
+
             sym_planes = torch.tensor(df.values)
             if self.debug:
                 print(f'Exported dataframe to torch.tensor with shape: {sym_planes.shape}\n{sym_planes}')
-            ''' ------------------------------------------------------------------------------------- '''
-            ''' ------------------------------------------------------------------------------------- '''
-            ''' ------------------------------------------------------------------------------------- '''
-            # TODO: remove these lines to use all the information in the new version of the dataset
-            if sym_planes[-1,0] == 1:                 # it's axial symmetry
-                sym_planes = sym_planes[:-1]          # throw away last row    == axis sym
-                sym_planes = sym_planes[:,:-1]        # throw away last column == angles
-                n_planes = n_planes - 1               # decrease the number of reported symmetries
-            sym_planes = sym_planes[:,1:]             # throw away 1st column  == plane/axis flags
-            if self.debug:
-                print(f'Resized tensor:\n{sym_planes.shape}\n{sym_planes}')
-            ''' ------------------------------------------------------------------------------------- '''
-            ''' ------------------------------------------------------------------------------------- '''
-            ''' ------------------------------------------------------------------------------------- '''
         #if n_planes == 1:
         #    sym_planes = sym_planes.unsqueeze(0)
 
@@ -259,7 +262,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(
-            self.validation_dataset,
+            self.valid_dataset,
             collate_fn=self.collate_function,
             batch_size=self.batch_size,
             shuffle=False,
