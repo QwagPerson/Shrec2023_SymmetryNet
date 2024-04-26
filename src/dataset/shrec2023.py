@@ -41,7 +41,7 @@ class SymmetryDataset(Dataset):
             data_source_path: str = "path/to/dataset/split",
             transform: Optional[Shrec2023Transform] = None,
             has_ground_truth: bool = True,
-            debug = True
+            debug = False
     ):
         """
         Dataset used for a track of SHREC2023. It contains a set of 3D points
@@ -295,27 +295,9 @@ if __name__ == "__main__":
     sampler = RandomSampler(sample_size=3, keep_copy=True)
     default_transform = ComposeTransform([scaler, sampler])
 
-    print('1.')
-    print('1.')
-    print('1.')
-    print('1.')
-    print('1.')
-    print('1.')
-    print('1.')
-    print('1.')
     train_dataset = SymmetryDataset(Path(DATA_PATH) / 'train', default_transform)
     valid_dataset = SymmetryDataset(Path(DATA_PATH) / 'valid', default_transform)
     test_dataset  = SymmetryDataset(Path(DATA_PATH) / 'test' , default_transform)
-
-
-    print('2.')
-    print('2.')
-    print('2.')
-    print('2.')
-    print('2.')
-    print('2.')
-    print('2.')
-    print('2.')
 
     example_idx, example_points, example_syms, example_tr = train_dataset[0]
     print("transformed", example_idx, example_points[0, :], example_syms[0, :], example_tr)
