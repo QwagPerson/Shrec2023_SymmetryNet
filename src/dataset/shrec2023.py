@@ -51,18 +51,18 @@ class SymmetryDataset(Dataset):
         """
         self.data_source_path = Path(data_source_path)
         self.transform = transform
-        self.length = len(os.listdir(self.data_source_path)) // 2
+        #self.length = len(os.listdir(self.data_source_path)) // 2
         self.has_ground_truth = has_ground_truth
         self.debug = debug
 
         if self.debug:
            print(f'Searching xz-compressed point cloud files in {self.data_source_path}...')
-        self.flist = list(self.data_source_path.rglob(f'*/*.xz'))
+        self.flist  = list(self.data_source_path.rglob(f'*/*.xz'))
+        self.length = len(self.flist)
         if self.debug:
-            print(f'{self.data_source_path.name}: found {len(self.flist)} files:\n{self.flist[:5]}\n{self.flist[-5:]}\n')
+            print(f'{self.data_source_path.name}: found {self.length} files:\n{self.flist[:5]}\n{self.flist[-5:]}\n')
 
     def fname_from_idx(self, idx: int) -> str:
-        idx = 7001
         if idx < 0 or idx >= len(self.flist):
             raise IndexError(f"Invalid index: {idx}, dataset size is: {len(self.flist)}")
         fname = self.flist[idx]
@@ -105,7 +105,19 @@ class SymmetryDataset(Dataset):
             #converters = {1: lambda s: [0 if s == 'plane' else 1]}
             #sym_planes = torch.tensor(np.loadtxt(f, converters=converters, usecols=range(1,7)))
             #sym_planes = torch.tensor(np.loadtxt(f, usecols=range(1,8)))
-            df = pd.read_csv(f, sep=' ', header=None, names=['type', 'nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'theta']).fillna(-1) # 'ϑ'
+            if self.debug:
+                print(f'Reading CSV dataframe with filename:\n{Path(sym_fname).name}')
+            #df = pd.read_csv(f, sep=' ', header=None, usecols=range(0,8), names=['type', 'nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'theta']).fillna(-1) # 'ϑ'
+            try:
+                if self.debug:
+                    print(f'Reading CSV dataframe with theta column')
+                df = pd.read_csv(f, sep=' ', header=None, names=['type', 'nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'theta']).fillna(-1) # 'ϑ'
+            except pd.errors.ParserError:
+                if self.debug:
+                    print(f'Re-reading CSV dataframe without theta column')
+                # NOTE here that we read the file directly, so we must throw away the first row
+                df = pd.read_csv(sym_fname, sep=' ', header=None, names=['type', 'nx', 'ny', 'nz', 'cx', 'cy', 'cz']).fillna(-1) # 'ϑ'
+                df = df.iloc[1:]
             if self.debug:
                 print(f'Read dataframe:\n{df}')
             df['type'] = np.where(df['type'] == 'plane', 0, 1)
@@ -114,8 +126,22 @@ class SymmetryDataset(Dataset):
             sym_planes = torch.tensor(df.values)
             if self.debug:
                 print(f'Exported dataframe to torch.tensor with shape: {sym_planes.shape}\n{sym_planes}')
-        if n_planes == 1:
-            sym_planes = sym_planes.unsqueeze(0)
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+            # TODO: remove these lines to use all the information in the new version of the dataset
+            if sym_planes[-1,0] == 1:                 # it's axial symmetry
+                sym_planes = sym_planes[:-1]          # throw away last row    == axis sym
+                sym_planes = sym_planes[:,:-1]        # throw away last column == angles
+                n_planes = n_planes - 1               # decrease the number of reported symmetries
+            sym_planes = sym_planes[:,1:]             # throw away 1st column  == plane/axis flags
+            if self.debug:
+                print(f'Resized tensor:\n{sym_planes.shape}\n{sym_planes}')
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+            ''' ------------------------------------------------------------------------------------- '''
+        #if n_planes == 1:
+        #    sym_planes = sym_planes.unsqueeze(0)
 
         if self.debug:
            print(f'[{idx}]: {n_planes = }\n{sym_planes}')
@@ -156,7 +182,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
             does_predict_has_ground_truths: bool = False,
             batch_size: int = 2,
             transform: Optional[Shrec2023Transform] = None,
-            collate_function= None,
+            collate_function = None,
             #validation_percentage: float = 0.1,
             shuffle: bool = True,
             n_workers: int = 1,
@@ -269,9 +295,27 @@ if __name__ == "__main__":
     sampler = RandomSampler(sample_size=3, keep_copy=True)
     default_transform = ComposeTransform([scaler, sampler])
 
+    print('1.')
+    print('1.')
+    print('1.')
+    print('1.')
+    print('1.')
+    print('1.')
+    print('1.')
+    print('1.')
     train_dataset = SymmetryDataset(Path(DATA_PATH) / 'train', default_transform)
     valid_dataset = SymmetryDataset(Path(DATA_PATH) / 'valid', default_transform)
     test_dataset  = SymmetryDataset(Path(DATA_PATH) / 'test' , default_transform)
+
+
+    print('2.')
+    print('2.')
+    print('2.')
+    print('2.')
+    print('2.')
+    print('2.')
+    print('2.')
+    print('2.')
 
     example_idx, example_points, example_syms, example_tr = train_dataset[0]
     print("transformed", example_idx, example_points[0, :], example_syms[0, :], example_tr)
@@ -287,9 +331,10 @@ if __name__ == "__main__":
         #test_data_path=DATA_PATH,
         predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
-        batch_size=1,
+        batch_size=100,
         transform=default_transform,
-        collate_function=default_symmetry_dataset_collate_fn,
+        collate_function=default_symmetry_dataset_collate_fn_list_sym,
+        #collate_function=default_symmetry_dataset_collate_fn,
         #validation_percentage=0.1,
         shuffle=True,
         n_workers=1,
@@ -297,7 +342,7 @@ if __name__ == "__main__":
     datamodule.setup("fit")
 
     train_dataloader = datamodule.train_dataloader()
-    print(len(train_dataloader))
+    print(f'The training dataloader has: {len(train_dataloader)} batches')
 
     batch = next(iter(train_dataloader))
 
