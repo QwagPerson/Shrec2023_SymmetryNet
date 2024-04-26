@@ -2,11 +2,19 @@ import copy
 import os
 from typing import Optional, Callable, Tuple, List
 
+import lzma
+from pathlib import Path
+import pandas as pd
+
 import lightning
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import random_split, DataLoader
+
+if __name__ == "__main__":
+        import sys 
+        sys.path.insert(0, '../..')
 
 from src.dataset.preprocessing import Shrec2023Transform, UnitSphereNormalization, RandomSampler, ComposeTransform
 
@@ -30,9 +38,10 @@ def default_symmetry_dataset_collate_fn_list_sym(batch):
 class SymmetryDataset(Dataset):
     def __init__(
             self,
-            data_source_path: str = "path/to/dataset",
+            data_source_path: str = "path/to/dataset/split",
             transform: Optional[Shrec2023Transform] = None,
-            has_ground_truth: bool = True
+            has_ground_truth: bool = True,
+            debug = True
     ):
         """
         Dataset used for a track of SHREC2023. It contains a set of 3D points
@@ -40,20 +49,45 @@ class SymmetryDataset(Dataset):
         :param data_source_path: Path to folder that contains the points and symmetries.
         :param transform: Transform applied to dataset item.
         """
-        self.data_source_path = data_source_path
+        self.data_source_path = Path(data_source_path)
         self.transform = transform
         self.length = len(os.listdir(self.data_source_path)) // 2
         self.has_ground_truth = has_ground_truth
+        self.debug = debug
+
+        if self.debug:
+           print(f'Searching xz-compressed point cloud files in {self.data_source_path}...')
+        self.flist = list(self.data_source_path.rglob(f'*/*.xz'))
+        if self.debug:
+            print(f'{self.data_source_path.name}: found {len(self.flist)} files:\n{self.flist[:5]}\n{self.flist[-5:]}\n')
+
+    def fname_from_idx(self, idx: int) -> str:
+        idx = 7001
+        if idx < 0 or idx >= len(self.flist):
+            raise IndexError(f"Invalid index: {idx}, dataset size is: {len(self.flist)}")
+        fname = self.flist[idx]
+        if self.debug:
+           print(f'Found file: {fname.name}')
+        return fname, str(fname).replace('.xz', '-sym.txt')
 
     def read_points(self, idx: int) -> torch.Tensor:
         """
         Reads the points with index idx.
-        :param idx: Index of points to be read.
+        :param idx: Index of points to be read. Not to be confused with the shape ID, this is now just the index in self.flist
         :return: A tensor of shape N x 3 where N is the amount of points.
         """
-        points = torch.tensor(
-            np.loadtxt(os.path.join(self.data_source_path, f"points{idx}.txt"))
-        )
+        fname, _ = self.fname_from_idx(idx)
+
+        points = None
+        with lzma.open(fname, 'rb') as fhandle:
+            points = torch.tensor(np.loadtxt(fhandle))
+
+        if self.debug:
+           torch.set_printoptions(linewidth=200)
+           torch.set_printoptions(precision=3)
+           torch.set_printoptions(sci_mode=False)
+           print(f'[{idx}]: {points.shape = }\n{points = }')
+
         return points
 
     def read_planes(self, idx: int) -> torch.Tensor:
@@ -65,11 +99,27 @@ class SymmetryDataset(Dataset):
         N is the amount of planes and 6 because the first 3 elements
         are the normal and the last 3 are the point.
         """
-        with open(os.path.join(self.data_source_path, f"points{idx}_sym.txt")) as f:
+        _, sym_fname = self.fname_from_idx(idx)
+        with open(sym_fname) as f:
             n_planes = int(f.readline().strip())
-            sym_planes = torch.tensor(np.loadtxt(f))
+            #converters = {1: lambda s: [0 if s == 'plane' else 1]}
+            #sym_planes = torch.tensor(np.loadtxt(f, converters=converters, usecols=range(1,7)))
+            #sym_planes = torch.tensor(np.loadtxt(f, usecols=range(1,8)))
+            df = pd.read_csv(f, sep=' ', header=None, names=['type', 'nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'theta']).fillna(-1) # 'ϑ'
+            if self.debug:
+                print(f'Read dataframe:\n{df}')
+            df['type'] = np.where(df['type'] == 'plane', 0, 1)
+            if self.debug:
+                print(f'Converted dataframe:\n{df}')
+            sym_planes = torch.tensor(df.values)
+            if self.debug:
+                print(f'Exported dataframe to torch.tensor with shape: {sym_planes.shape}\n{sym_planes}')
         if n_planes == 1:
             sym_planes = sym_planes.unsqueeze(0)
+
+        if self.debug:
+           print(f'[{idx}]: {n_planes = }\n{sym_planes}')
+
         return sym_planes
 
     def __len__(self):
@@ -98,51 +148,57 @@ default_transform = scaler
 class SymmetryDataModule(lightning.LightningDataModule):
     def __init__(
             self,
-            train_data_path: str = "/path/to/train_data",
-            test_data_path: str = "/path/to/test_data",
+            #train_data_path  : str = "/path/to/train_data",
+            #valid_data_path  : str = "/path/to/valid_data",
+            #test_data_path   : str = "/path/to/test_data",
+            dataset_path: str = "/path/to/dataset",
             predict_data_path: str = "/path/to/predict_data",
             does_predict_has_ground_truths: bool = False,
             batch_size: int = 2,
             transform: Optional[Shrec2023Transform] = None,
             collate_function= None,
-            validation_percentage: float = 0.1,
+            #validation_percentage: float = 0.1,
             shuffle: bool = True,
             n_workers: int = 1,
     ):
         """
         Data module designed to load Shrec2023 symmetry dataset.
-        :param train_data_path: Path to train data it must contain points and planes.
-        :param test_data_path:  Path to test data it must contain points and planes.
+        :param dataset_path: Path to dataset, it must contain points and planes split in train/valid/test sets.
         :param predict_data_path: Path to predict it must contain points and can contain planes
         :param does_predict_has_ground_truths : Boolean flag to indicate if the predict data has
         ground truths.
         :param batch_size: Batch size used on all dataloaders.
         :param transform: Transform applied to all dataloaders.
         :param collate_function: Function used to batch the items from symmetry dataset.
-        :param validation_percentage: Percentage used for validation data.
         :param shuffle: True if you want to shuffle the train dataloader every epoch.
         :param n_workers: Amount of workers used for loading data into RAM.
         """
         super().__init__()
-        self.train_data_path = train_data_path
-        self.test_data_path = test_data_path
+        self.dataset_path = dataset_path
         self.predict_data_path = predict_data_path
+
         self.does_predict_has_ground_truths = does_predict_has_ground_truths
         self.batch_size = batch_size
         self.transform = default_transform if transform is None else transform
         self.collate_function = default_symmetry_dataset_collate_fn_list_sym if collate_function is None else collate_function
-        self.validation_percentage = validation_percentage
+        #self.validation_percentage = validation_percentage
         self.shuffle = shuffle
         self.n_workers = n_workers
 
     def setup(self, stage: str):
         if stage == "fit":
-            dataset_full = SymmetryDataset(
-                data_source_path=self.train_data_path,
+            self.train_dataset = SymmetryDataset(
+                data_source_path=Path(self.dataset_path) / 'train',
+                transform=self.transform,
+                has_ground_truth=True
+            )
+            self.valid_dataset = SymmetryDataset(
+                data_source_path=Path(self.dataset_path) / 'valid',
                 transform=self.transform,
                 has_ground_truth=True
             )
 
+            '''
             proportions = [1 - self.validation_percentage, self.validation_percentage]
             lengths = [int(p * len(dataset_full)) for p in proportions]
             lengths[-1] = len(dataset_full) - sum(lengths[:-1])
@@ -150,10 +206,11 @@ class SymmetryDataModule(lightning.LightningDataModule):
             self.train_dataset, self.validation_dataset = random_split(
                 dataset_full, lengths
             )
+            '''
 
         if stage == "test":
             self.test_dataset = SymmetryDataset(
-                data_source_path=self.test_data_path,
+                data_source_path=Path(self.dataset_path) / 'test',
                 transform=self.transform,
                 has_ground_truth=True
             )
@@ -205,15 +262,18 @@ class SymmetryDataModule(lightning.LightningDataModule):
 if __name__ == "__main__":
     from src.dataset.preprocessing import *
 
-    DATA_PATH = "/data/shrec_2023/benchmark-train"
+    #DATA_PATH = "/data/shrec_2023/benchmark-train"
+    DATA_PATH = "/mnt/btrfs-big/dataset/geometric-primitives-classification/symmetry-datasets/sym-10k-xz-split-class-noparallel"
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=3, keep_copy=True)
     default_transform = ComposeTransform([scaler, sampler])
 
-    dataset = SymmetryDataset(DATA_PATH, default_transform)
+    train_dataset = SymmetryDataset(Path(DATA_PATH) / 'train', default_transform)
+    valid_dataset = SymmetryDataset(Path(DATA_PATH) / 'valid', default_transform)
+    test_dataset  = SymmetryDataset(Path(DATA_PATH) / 'test' , default_transform)
 
-    example_idx, example_points, example_syms, example_tr = dataset[0]
+    example_idx, example_points, example_syms, example_tr = train_dataset[0]
     print("transformed", example_idx, example_points[0, :], example_syms[0, :], example_tr)
     ridx, rpoints, rsyms = example_tr.inverse_transform(example_idx, example_points, example_syms)
     print("inverse_transform", ridx, rpoints[0, :], rsyms[0, :])
@@ -221,14 +281,16 @@ if __name__ == "__main__":
     print("transformed 2", ridx, rpoints[0, :], rsyms[0, :])
 
     datamodule = SymmetryDataModule(
-        train_data_path=DATA_PATH,
-        test_data_path=DATA_PATH,
+        dataset_path=DATA_PATH,
+        #train_data_path=DATA_PATH,
+        #valid_data_path=DATA_PATH,
+        #test_data_path=DATA_PATH,
         predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
         batch_size=1,
         transform=default_transform,
         collate_function=default_symmetry_dataset_collate_fn,
-        validation_percentage=0.1,
+        #validation_percentage=0.1,
         shuffle=True,
         n_workers=1,
     )
