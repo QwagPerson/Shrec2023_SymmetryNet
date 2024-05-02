@@ -20,6 +20,9 @@ def calculate_matching(points, y_pred, y_true, eps, theta):
     y_pred = y_pred[confidences][0]
     y_pred = SymPlane.from_tensor(y_pred, y_pred[-1])
 
+    if y_true is None:
+        return 0
+
     for idx in range(y_true.shape[0]):
         a_y_true = SymPlane.from_tensor(y_true[idx])
         match = y_pred.is_close(
@@ -41,7 +44,7 @@ def get_matches_amount(batch, y_pred_list, eps, theta):
     :param eps:
     :return: float
     """
-    _, batched_points, y_true_list, _ = batch
+    _, batched_points, y_true_list, _, _, _ = batch
     batch_size = len(y_true_list)
     matches = 0
     for idx in range(batch_size):

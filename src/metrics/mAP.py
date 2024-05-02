@@ -82,6 +82,9 @@ def calculate_average_precision(points, y_pred, y_true, eps, theta):
     :param theta:
     :return:
     """
+    if y_true is None:
+        return 0.0
+
     match_sequence = get_match_sequence(y_pred, y_true, points, eps, theta)
     uninterpolated_pr_curve = get_pr_curve(match_sequence, y_true.shape[0])
     interpolated_pr_curve = interpolate_pr_curve(uninterpolated_pr_curve)
@@ -101,7 +104,7 @@ def get_average_precision(batch, y_pred_list, eps, theta):
     :param eps:
     :return:
     """
-    _, batched_points, y_true_list, _ = batch
+    _, batched_points, y_true_list, _, _, _ = batch
     batch_size = len(y_true_list)
     average_precision_list = []
     for idx in range(batch_size):

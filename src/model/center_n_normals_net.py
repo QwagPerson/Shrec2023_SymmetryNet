@@ -12,7 +12,7 @@ from torch.utils.data import Subset, DataLoader
 from src.metrics.mAP import get_mean_average_precision, get_match_sequence
 from src.metrics.phc import get_phc
 from src.model.decoders.center_prediction_head import CenterPredictionHead
-from src.model.decoders.normal_prediction_head import NormalPredictionHead
+from src.model.decoders.prediction_head import PredictionHead
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 from src.model.losses.discrete_prediction_loss import calculate_loss
 from src.model.losses.utils import calculate_cost_matrix_normals, calculate_cost_matrix_sde
@@ -22,46 +22,113 @@ from src.model.postprocessing.utils import reverse_transformation
 class CenterNNormalsNet(nn.Module):
     def __init__(
             self,
-            amount_of_normals_predicted: int = 3,
-            use_bn=False
+            amount_of_plane_normals_predicted=10,
+            amount_of_axis_discrete_normals_predicted=10,
+            amount_of_axis_continue_normals_predicted=10,
+            use_bn=False,
+            normalize_normals=False,
     ):
         super().__init__()
         self.use_bn = use_bn
-        self.h = amount_of_normals_predicted
+        self.normalize_normals = normalize_normals
+        self.amount_plane_normals = amount_of_plane_normals_predicted
+        self.amount_axis_discrete_normals = amount_of_axis_discrete_normals_predicted
+        self.amount_axis_continue_normals = amount_of_axis_continue_normals_predicted
 
         self.encoder = PointNetEncoder(use_bn=self.use_bn)
-        self.normal_prediction_heads = nn.ModuleList(
-            [NormalPredictionHead(use_bn=self.use_bn) for _ in range(self.h)]
+
+        # nx ny nz & confidence
+        self.plane_normals_heads = nn.ModuleList(
+            [PredictionHead(output_size=4, use_bn=self.use_bn) for _ in range(self.amount_plane_normals)]
+        )
+
+        # nx ny nz theta & confidence
+        self.axis_discrete_normals_heads = nn.ModuleList(
+            [PredictionHead(output_size=5, use_bn=self.use_bn) for _ in range(self.amount_axis_discrete_normals)]
+        )
+
+        # nx ny nz & confidence
+        self.axis_continue_normals_heads = nn.ModuleList(
+            [PredictionHead(output_size=4, use_bn=self.use_bn) for _ in range(self.amount_axis_continue_normals)]
         )
 
         self.center_prediction_head = CenterPredictionHead(use_bn=self.use_bn)
 
     def forward(self, x):
         batch_size = x.shape[0]
-        normal_list = []
+        plane_normals_list = []
+        axis_discrete_normals_list = []
+        axis_continue_normals_list = []
 
         x = self.encoder(x)
+        center = self.center_prediction_head(x).unsqueeze(dim=1)
 
-        for head in self.normal_prediction_heads:
-            normal_list.append(head(x))
+        for head in self.plane_normals_heads:
+            plane_normals_list.append(head(x))
 
-        center = self.center_prediction_head(x).unsqueeze(dim=1).repeat(1, self.h, 1)
-        normals = torch.vstack(normal_list).view(batch_size, self.h, 4)  # Normal (3) + Confidence(1)
+        for head in self.axis_discrete_normals_heads:
+            axis_discrete_normals_list.append(head(x))
 
-        predictions = torch.concat((normals, center), dim=2)
-        reorder = torch.tensor([0, 1, 2, 4, 5, 6, 3], device=predictions.device).long()
+        for head in self.axis_continue_normals_heads:
+            axis_continue_normals_list.append(head(x))
 
-        predictions = predictions[:, :, reorder]
+        # Plane prediction
+        # Normal (3) + Confidence(1)
+        plane_normals = (torch.vstack(plane_normals_list).view(
+            batch_size, self.amount_plane_normals, 4
+        ))
+        plane_predictions = torch.concat(
+            (plane_normals, center.repeat(1, self.amount_plane_normals, 1)), dim=2
+        )
 
-        predictions[:, :, -1] = torch.sigmoid(predictions[:, :, -1])
-        predictions[:, :, 0:3] = torch.nn.functional.normalize(predictions[:, :, 0:3].clone(), dim=2)
+        reorder_planes = torch.tensor([0, 1, 2, 4, 5, 6, 3], device=plane_predictions.device).long()
+        plane_predictions = plane_predictions[:, :, reorder_planes]
+        plane_predictions[:, :, -1] = torch.sigmoid(plane_predictions[:, :, -1])
 
-        return predictions
+        # Axis discrete prediction
+        # Normal (3) + Theta (1) + Confidence(1)
+        axis_discrete_normals = (torch.vstack(axis_discrete_normals_list).view(
+            batch_size, self.amount_axis_discrete_normals, 5
+        ))
+        axis_discrete_predictions = torch.concat(
+            (axis_discrete_normals, center.repeat(1, self.amount_axis_discrete_normals, 1)), dim=2
+        )
+        reorder_axis_discrete = torch.tensor([0, 1, 2, 4, 5, 6, 7, 3], device=plane_predictions.device).long()
+        axis_discrete_predictions = axis_discrete_predictions[:, :, reorder_axis_discrete]
+        axis_discrete_predictions[:, :, -1] = torch.sigmoid(axis_discrete_predictions[:, :, -1])
+
+        # Axis continue prediction
+        # Normal (3) + Confidence(1)
+        axis_continue_normals = (torch.vstack(axis_continue_normals_list).view(
+            batch_size, self.amount_axis_continue_normals, 4
+        ))
+        axis_continue_predictions = torch.concat(
+            (axis_continue_normals, center.repeat(1, self.amount_axis_continue_normals, 1)), dim=2
+        )
+
+        reorder_planes = torch.tensor([0, 1, 2, 4, 5, 6, 3], device=axis_continue_predictions.device).long()
+        axis_continue_predictions = axis_continue_predictions[:, :, reorder_planes]
+        axis_continue_predictions[:, :, -1] = torch.sigmoid(axis_continue_predictions[:, :, -1])
+
+        if self.normalize_normals:
+            plane_predictions[:, :, 0:3] = torch.nn.functional.normalize(
+                plane_predictions[:, :, 0:3].clone(), dim=2
+            )
+            axis_discrete_predictions[:, :, 0:3] = torch.nn.functional.normalize(
+                axis_discrete_predictions[:, :, 0:3].clone(), dim=2
+            )
+            axis_continue_predictions[:, :, 0:3] = torch.nn.functional.normalize(
+                axis_continue_predictions[:, :, 0:3].clone(), dim=2
+            )
+
+        return plane_predictions, axis_discrete_predictions, axis_continue_predictions
 
 
 class LightingCenterNNormalsNet(lightning.LightningModule):
     def __init__(self,
-                 amount_of_normals_predicted: int = 3,
+                 amount_of_plane_normals_predicted: int = 32,
+                 amount_of_axis_discrete_normals_predicted: int = 16,
+                 amount_of_axis_continue_normals_predicted: int = 16,
                  confidence_loss_constant: float = 1.0,
                  sde_loss_constant: float = 1.0,
                  distance_loss_constant: float = 1.0,
@@ -69,9 +136,11 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  cost_matrix_method: Callable = calculate_cost_matrix_normals,
                  print_losses: bool = False,
                  use_bn: bool = False,
+                 normalize_normals: bool = True
                  ):
         super().__init__()
         self.use_bn = use_bn
+        self.normalize_normals = normalize_normals
         self.print_losses = print_losses
         self.cost_matrix_method = cost_matrix_method
         self.losses_weights = torch.tensor([
@@ -82,107 +151,112 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         ])
 
         self.net = CenterNNormalsNet(
-            amount_of_normals_predicted=amount_of_normals_predicted,
-            use_bn=self.use_bn
+            amount_of_plane_normals_predicted,
+            amount_of_axis_discrete_normals_predicted,
+            amount_of_axis_continue_normals_predicted,
+            use_bn=self.use_bn,
+            normalize_normals=self.normalize_normals
         )
         self.save_hyperparameters(ignore=["net"])
 
     def configure_optimizers(self):
+        # Does this matter much?? self.parameters() vs self.net.parameters()
         optimizer = torch.optim.Adam(self.parameters())
         return optimizer
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
-        idxs, points, sym_planes, transforms = batch
+        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
         points = torch.transpose(points, 1, 2).float()
 
-        y_pred = self.net.forward(points)
+        plane_predictions, axis_discrete_predictions, axis_continue_predictions = self.net.forward(points)
         loss = calculate_loss(
-            batch, y_pred,
+            batch, plane_predictions,
             self.cost_matrix_method, self.losses_weights,
             self.print_losses
         )
 
-        prediction = [(batch, y_pred)]
+        prediction = [(batch, plane_predictions)]
         mean_avg_precision = get_mean_average_precision(prediction)
         phc = get_phc(prediction)
 
         self.log("train_loss", loss, on_step=True, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("train_MAP", mean_avg_precision, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("train_PHC", phc, on_step=False, on_epoch=True,
-                 prog_bar=False, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=False, sync_dist=True, batch_size=len(planar_syms))
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        idxs, points, sym_planes, transforms = batch
+        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
         points = torch.transpose(points, 1, 2).float()
 
-        y_pred = self.net.forward(points)
+        plane_predictions, axis_discrete_predictions, axis_continue_predictions = self.net.forward(points)
         loss = calculate_loss(
-            batch, y_pred,
+            batch, plane_predictions,
             self.cost_matrix_method, self.losses_weights,
             self.print_losses
         )
 
-        prediction = [(batch, y_pred)]
+        prediction = [(batch, plane_predictions)]
         mean_avg_precision = get_mean_average_precision(prediction)
         phc = get_phc(prediction)
 
         self.log("val_loss", loss, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("val_MAP", mean_avg_precision, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("val_PHC", phc, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
 
         return loss
 
     def test_step(self, batch, batch_idx):
-        idxs, points, sym_planes, transforms = batch
+        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
         points = torch.transpose(points, 1, 2).float()
 
-        y_pred = self.net.forward(points)
+        plane_predictions, axis_discrete_predictions, axis_continue_predictions = self.net.forward(points)
         loss = calculate_loss(
-            batch, y_pred,
+            batch, plane_predictions,
             self.cost_matrix_method, self.losses_weights,
             self.print_losses
         )
 
-        prediction = [(batch, y_pred)]
+        prediction = [(batch, plane_predictions)]
         mean_avg_precision = get_mean_average_precision(prediction)
         phc = get_phc(prediction)
 
-        unscaled_batch, unscaled_y_pred = reverse_transformation(batch, y_pred)
+        unscaled_batch, unscaled_plane_predictions = reverse_transformation(batch, plane_predictions)
 
-        unscaled_prediction = [(unscaled_batch, unscaled_y_pred)]
+        unscaled_prediction = [(unscaled_batch, unscaled_plane_predictions)]
         unscaled_mean_avg_precision = get_mean_average_precision(unscaled_prediction)
         unscaled_phc = get_phc(unscaled_prediction)
 
         self.log("test_loss", loss, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("test_MAP", mean_avg_precision, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("test_PHC", phc, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("unscaled_test_MAP", unscaled_mean_avg_precision, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
         self.log("unscaled_test_PHC", unscaled_phc, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(sym_planes))
-        return batch, y_pred
+                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
+        return batch, plane_predictions
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        idxs, points, y_true, transforms = batch
+        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
         points = torch.transpose(points, 1, 2).float()
 
-        y_pred = self.net.forward(points)
+        planar_syms = self.net.forward(points)
 
-        return batch, y_pred
+        return batch, planar_syms
 
     def on_after_backward(self):
         for name, param in self.net.named_parameters():
-            if param.grad.isnan().any():
-                print(f"{name} got nan!")
+            if param.grad is not None:
+                if param.grad.isnan().any():
+                    print(f"{name} got nan!")
 
 
 if __name__ == "__main__":
@@ -191,42 +265,39 @@ if __name__ == "__main__":
                                        default_symmetry_dataset_collate_fn_list_sym)
     from src.dataset.preprocessing import *
 
-    DATA_PATH = "/data/shrec_2023/benchmark-train"
-    TEST_PATH = "/data/shrec_2023/benchmark-train"
-    #DATA_PATH = "/tmp/ramdrive/benchmark-train-14400"
-    #TEST_PATH = "/tmp/ramdrive/benchmark-train-14400"
-    BATCH_SIZE = 1
-    PREDICT_SAMPLES = 64
+    DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/"
+    BATCH_SIZE = 10
+    PREDICT_SAMPLES = 1
     SAMPLE_SIZE = 14_440
     COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
     NUM_WORKERS = 15
 
     scaler = UnitSphereNormalization()
-    #sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
-    #compose_transform = ComposeTransform([sampler, scaler])
-    compose_transform = scaler
+    sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
+    compose_transform = ComposeTransform([sampler, scaler])
 
-    dataset = SymmetryDataset(DATA_PATH, compose_transform)
     datamodule = SymmetryDataModule(
-        train_data_path=DATA_PATH,
-        test_data_path=TEST_PATH,
-        predict_data_path=TEST_PATH,
+        dataset_path=DATA_PATH,
+        predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
-        batch_size=BATCH_SIZE,
+        batch_size=25,
         transform=compose_transform,
-        collate_function=COLLATE_FN,
-        validation_percentage=0.2,
+        collate_function=default_symmetry_dataset_collate_fn_list_sym,
         shuffle=True,
-        n_workers=NUM_WORKERS,
+        n_workers=1,
     )
     datamodule.setup("predict")
     datamodule.setup("fit")
 
-    #test_model = '/mnt/btrfs-data/venvs/ml-tutorials/repos/pointnet/Shrec2023_SymmetryNet-orig/epoch_epoch=1_val_MAP=0.56_train_MAP=0.46.ckpt'
-    test_model = "models/bs4/epoch=37_train_loss_epoch=1.52210_val_MAP=0.39_train_MAP=0.38.ckpt"
-    test_net = LightingCenterNNormalsNet.load_from_checkpoint(test_model)
+    test_net = LightingCenterNNormalsNet()
     trainer = lightning.Trainer(enable_progress_bar=True, logger=False)
 
+    test_batch = next(iter(datamodule.train_dataloader()))
+    test_net.training_step(test_batch, 0)
+
+    trainer.fit(test_net, datamodule)
+
+    """
     print(f'Training dataset has: {len(datamodule.train_dataset) = } batches')
     train_dataloader = datamodule.train_dataloader()
     print(f'Train dataloader has: {len(train_dataloader) = } batches')
@@ -274,3 +345,4 @@ if __name__ == "__main__":
     print("Center matching")
     print("PHC", get_phc(predictions, theta=10).item())
     print("MAP", get_mean_average_precision(predictions, theta=10).item())
+    """

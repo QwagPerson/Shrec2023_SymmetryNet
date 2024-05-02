@@ -46,20 +46,14 @@ def parse_sym_file(fname):
     return planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
 
 
-def default_symmetry_dataset_collate_fn(batch):
-    idxs = torch.tensor([item[0] for item in batch])
-    points = torch.stack([item[1] for item in batch])
-    sym_planes = torch.nn.utils.rnn.pad_sequence([item[2] for item in batch], batch_first=True)
-    transforms = [item[3] for item in batch]
-    return idxs, points, sym_planes, transforms
-
-
 def default_symmetry_dataset_collate_fn_list_sym(batch):
     idxs = torch.tensor([item[0] for item in batch])
     points = torch.stack([item[1] for item in batch])
-    sym_planes = [item[2] for item in batch]
-    transforms = [item[3] for item in batch]
-    return idxs, points, sym_planes, transforms
+    planar_syms = [item[2] for item in batch]
+    axis_continue_syms = [item[3] for item in batch]
+    axis_discrete_syms = [item[4] for item in batch]
+    transforms = [item[5] for item in batch]
+    return idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms
 
 
 def unsqueeze_if_only_one_symmetry(symmetries):
@@ -132,7 +126,6 @@ class SymmetryDataset(Dataset):
         are the normal and the last 3 are the point.
         """
         _, sym_fname = self.fname_from_idx(idx)
-        print(sym_fname)
         return parse_sym_file(sym_fname)
 
     def __len__(self):

@@ -102,12 +102,12 @@ def calculate_loss(
     :param cost_matrix_method:
     :return:
     """
-    _, points, y_true, _ = batch
+    _, points, y_true, _, _, _ = batch
     bs     = points.shape[0]
     loss   = torch.tensor([0.0], device=points.device)
     losses = torch.zeros(bs, device=points.device)
 
-    if show_losses or True:
+    if show_losses:
         torch.set_printoptions  (linewidth=200)
         torch.set_printoptions  (precision=3)
         torch.set_printoptions  (sci_mode=False)
@@ -119,14 +119,19 @@ def calculate_loss(
         curr_points = points[b_idx]
         curr_y_true = y_true[b_idx]
         curr_y_pred = y_pred[b_idx]
+
+        if curr_y_true is None:
+            bs -= 1
+            continue
+
         losses[b_idx] = calculate_loss_aux(
             curr_points, curr_y_pred, curr_y_true,
             cost_matrix_method, weights,
             show_losses
         )
-        if show_losses or losses[b_idx].item() >= 1. or curr_y_true.shape[0] >= 7:
+        if show_losses:
             print(f"{[b_idx]} Y_true\n{curr_y_true}")
             print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
             print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
-    loss = torch.mean(losses)
+    loss = torch.sum(losses) / bs
     return loss # / bs

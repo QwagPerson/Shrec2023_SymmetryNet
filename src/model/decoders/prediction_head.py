@@ -2,10 +2,11 @@ import torch.nn
 from torch import nn
 
 
-class NormalPredictionHead(nn.Module):
-    def __init__(self, use_bn=False):
+class PredictionHead(nn.Module):
+    def __init__(self, output_size, use_bn=False):
         super().__init__()
         self.use_bn = use_bn
+        self.output_size = output_size
         if use_bn:
             self.decoder_head = torch.nn.Sequential(
                 nn.Linear(1024, 512),
@@ -14,7 +15,7 @@ class NormalPredictionHead(nn.Module):
                 nn.Linear(512, 256),
                 nn.BatchNorm1d(256),
                 nn.LeakyReLU(),
-                nn.Linear(256, 4),
+                nn.Linear(256, self.output_size),
             )
         else:
             self.decoder_head = torch.nn.Sequential(
@@ -22,7 +23,7 @@ class NormalPredictionHead(nn.Module):
                 nn.LeakyReLU(),
                 nn.Linear(512, 256),
                 nn.LeakyReLU(),
-                nn.Linear(256, 4),
+                nn.Linear(256, self.output_size),
             )
 
 
