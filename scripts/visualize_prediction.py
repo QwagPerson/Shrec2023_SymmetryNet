@@ -1,20 +1,13 @@
 import pathlib
 from argparse import ArgumentParser
 
-import lightning
-import torch
-from lightning import Trainer
 import polyscope as ps
+from lightning import Trainer
+from torch.utils.data import DataLoader, Subset
 
-from src.dataset.preprocessing import ComposeTransform, RandomSampler, UnitSphereNormalization
+from src.dataset.shrec2023 import SymmetryDataModule, default_symmetry_dataset_collate_fn_list_sym
 from src.metrics.mAP import get_mean_average_precision, get_match_sequence
 from src.model.center_n_normals_net import LightingCenterNNormalsNet
-from src.dataset.shrec2023 import SymmetryDataModule, default_symmetry_dataset_collate_fn, \
-    default_symmetry_dataset_collate_fn_list_sym
-from torch.utils.data import Dataset
-from torch.utils.data import random_split, DataLoader, Subset
-from lightning.pytorch.callbacks import EarlyStopping
-
 from src.utils.plane import SymmetryPlane
 
 
