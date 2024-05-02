@@ -81,6 +81,8 @@ def calculate_angle_loss(y_pred, y_true):
     :param y_true: M x 6
     :return:
     """
+    print(f'{y_pred.shape = }\n{y_true.shape = }')
+    print(f'{y_pred = }\n{y_true = }')
     normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)  # M x 3
     normals_true = torch.nn.functional.normalize(y_true[:, 0:3], dim=1)  # M x 3
 
@@ -89,6 +91,9 @@ def calculate_angle_loss(y_pred, y_true):
     # or if n_1 == -n_2 => cos(Theta) = -1
     # Min theta <=> Min 1 - |cos(Theta)| <=> 1 - |n_1 . n_2.T|
     cos_angle = 1 - torch.abs(normals_true @ normals_pred.T) # M x M
+    print(f'{type(cos_angle) = }')
+    print(f'{cos_angle.shape = }')
+    print(f'{cos_angle = }')
     # We take the min of cos_angle because it is expected that the min value is
     # the one corresponding to the assigned plane, this is not a 100% certain but
     # it is expected because this plane was assigned to that true plane because of a reason

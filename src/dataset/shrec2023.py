@@ -109,9 +109,17 @@ class SymmetryDataset(Dataset):
                 print(f'Reading CSV dataframe with filename:\n{Path(sym_fname).name}')
             #df = pd.read_csv(f, sep=' ', header=None, usecols=range(0,8), names=['type', 'nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'theta']).fillna(-1) # 'ϑ'
             try:
+                '''
+                TODO: restore me and fix me to be able to load the old dataset!!!
                 if self.debug:
                     print(f'Reading CSV dataframe with theta column')
                 df = pd.read_csv(f, sep=' ', header=None, names=['type', 'nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'theta']).fillna(-1) # 'ϑ'
+                '''
+                if self.debug:
+                    print(f'Reading CSV dataframe with the old dataset format (normals+points only)')
+                df = pd.read_csv(f, sep=' ', header=None, names=['nx', 'ny', 'nz', 'cx', 'cy', 'cz']).fillna(-1)
+                #df['type'] = df['type'].astype('int32')
+                df['type'] = 'plane'
             except pd.errors.ParserError:
                 if self.debug:
                     print(f'Re-reading CSV dataframe without theta column')
@@ -126,13 +134,16 @@ class SymmetryDataset(Dataset):
             ''' ------------------------------------------------------------------------------------- '''
             ''' ------------------------------------------------------------------------------------- '''
             ''' ------------------------------------------------------------------------------------- '''
-            '''
+            
             # TODO: enable these lines throw away some information present in the new version of the dataset
+            dfbackup = df.copy()
             if (df['type'] == 1).any() == True:          # there is an axial symmetry
                 df = df[df['type'] != 1]                 # throw away axial symmetry rows
                 df = df.drop('theta', axis=1)            # throw away last column == angles
                 n_planes = n_planes - 1                  # decrease the number of reported symmetries
-            '''
+            
+            if len(df) == 0 or n_planes == 0:            # there was only an axial symmetry, nothing else
+                df = dfbackup                            # restore original dataframe
             ''' ------------------------------------------------------------------------------------- '''
             ''' ------------------------------------------------------------------------------------- '''
             ''' ------------------------------------------------------------------------------------- '''
@@ -219,12 +230,14 @@ class SymmetryDataModule(lightning.LightningDataModule):
             self.train_dataset = SymmetryDataset(
                 data_source_path=Path(self.dataset_path) / 'train',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                debug=True
             )
             self.valid_dataset = SymmetryDataset(
                 data_source_path=Path(self.dataset_path) / 'valid',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                debug=True
             )
 
             '''
