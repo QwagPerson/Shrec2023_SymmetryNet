@@ -266,7 +266,7 @@ if __name__ == "__main__":
     from src.dataset.preprocessing import *
 
     DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/"
-    BATCH_SIZE = 10
+    BATCH_SIZE = 3
     PREDICT_SAMPLES = 1
     SAMPLE_SIZE = 14_440
     COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
@@ -280,7 +280,7 @@ if __name__ == "__main__":
         dataset_path=DATA_PATH,
         predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
-        batch_size=25,
+        batch_size=BATCH_SIZE,
         transform=compose_transform,
         collate_function=default_symmetry_dataset_collate_fn_list_sym,
         shuffle=True,
