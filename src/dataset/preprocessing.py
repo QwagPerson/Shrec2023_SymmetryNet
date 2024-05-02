@@ -88,7 +88,7 @@ class UnitSphereNormalization(Shrec2023Transform):
 
     def _handle_device(self, device):
         self.centroid=self.centroid.to(device)
-        self.farthest_distance=self.centroid.to(device)
+        self.farthest_distance=self.farthest_distance.to(device)
 
     def inverse_transform(self, idx: int, points: torch.Tensor, symmetries: Optional[torch.Tensor]) \
             -> (int, torch.Tensor, torch.Tensor):

@@ -291,8 +291,8 @@ class SymmetryDataModule(lightning.LightningDataModule):
 if __name__ == "__main__":
     from src.dataset.preprocessing import *
 
-    #DATA_PATH = "/data/shrec_2023/benchmark-train"
-    DATA_PATH = "/mnt/btrfs-big/dataset/geometric-primitives-classification/symmetry-datasets/sym-10k-xz-split-class-noparallel"
+    DATA_PATH = "/data/sym-10k-xz-split-class-noparallel"
+    #DATA_PATH = "/mnt/btrfs-big/dataset/geometric-primitives-classification/symmetry-datasets/sym-10k-xz-split-class-noparallel"
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=3, keep_copy=True)
@@ -311,16 +311,11 @@ if __name__ == "__main__":
 
     datamodule = SymmetryDataModule(
         dataset_path=DATA_PATH,
-        #train_data_path=DATA_PATH,
-        #valid_data_path=DATA_PATH,
-        #test_data_path=DATA_PATH,
         predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
         batch_size=100,
         transform=default_transform,
         collate_function=default_symmetry_dataset_collate_fn_list_sym,
-        #collate_function=default_symmetry_dataset_collate_fn,
-        #validation_percentage=0.1,
         shuffle=True,
         n_workers=1,
     )
