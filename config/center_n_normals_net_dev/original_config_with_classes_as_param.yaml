@@ -10,7 +10,7 @@ trainer:
   - class_path: lightning.pytorch.loggers.CSVLogger
     init_args:
       save_dir: ./logs
-      name: center_n_normals_first
+      name: new_center_n_normals
       version: null
       prefix: ''
       flush_logs_every_n_steps: 100
@@ -44,7 +44,7 @@ trainer:
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
       dirpath: null
-      filename: {epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
+      filename: ckpt_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       monitor: train_MAP
       verbose: false
       save_last: null
@@ -60,7 +60,7 @@ trainer:
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
       dirpath: null
-      filename: {epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
+      filename: ckpt_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       monitor: val_MAP
       verbose: false
       save_last: null
@@ -76,7 +76,7 @@ trainer:
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
       dirpath: null
-      filename: {epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
+      filename: ckpt_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       monitor: train_loss
       verbose: false
       save_last: null
@@ -92,7 +92,7 @@ trainer:
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
       dirpath: null
-      filename: {epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
+      filename: ckpt_{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       monitor: val_loss
       verbose: false
       save_last: null
@@ -150,7 +150,7 @@ model:
   use_bn: false
   normalize_normals: true
 data:
-  dataset_path: /data/sym-10k-xz-split-class-noparallel/
+  dataset_path: /data/gsanteli/sym-10k-xz-split-class-noparallel/
   predict_data_path: /path/to/predict_data
   does_predict_has_ground_truths: false
   batch_size: 32
