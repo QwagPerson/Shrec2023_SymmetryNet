@@ -16,7 +16,7 @@ from src.model.decoders.prediction_head import PredictionHead
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 from src.model.losses.discrete_prediction_loss import calculate_loss
 from src.model.losses.utils import calculate_cost_matrix_normals, calculate_cost_matrix_sde
-from src.model.postprocessing.utils import reverse_transformation
+from src.model.losses.utils import reverse_transformation
 
 
 class CenterNNormalsNet(nn.Module):

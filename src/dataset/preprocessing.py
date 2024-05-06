@@ -40,6 +40,12 @@ class Shrec2023Transform(ABC):
 
 
 class ComposeTransform(Shrec2023Transform):
+    def __init__(
+            self,
+            transforms: List[Shrec2023Transform]
+    ):
+        self.transforms = transforms
+
     def inverse_transform(
             self,
             idx: int,
@@ -53,12 +59,6 @@ class ComposeTransform(Shrec2023Transform):
                 idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
             )
         return idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
-
-    def __init__(
-            self,
-            transforms: List[Shrec2023Transform]
-    ):
-        self.transforms = transforms
 
     def transform(
             self,
@@ -109,8 +109,8 @@ class UnitSphereNormalization(Shrec2023Transform):
         return symmetries
 
     def _handle_device(self, device):
-        self.centroid=self.centroid.to(device)
-        self.farthest_distance=self.farthest_distance.to(device)
+        self.centroid = self.centroid.to(device)
+        self.farthest_distance = self.farthest_distance.to(device)
 
     def inverse_transform(
             self,
@@ -183,3 +183,25 @@ class RandomSampler(Shrec2023Transform):
             return idx, self.points_copy, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
         else:
             return idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
+
+
+class IdentityTransform(Shrec2023Transform):
+    def inverse_transform(
+            self,
+            idx: int,
+            points: torch.Tensor,
+            planar_symmetries: Optional[torch.Tensor],
+            axis_continue_symmetries: Optional[torch.Tensor],
+            axis_discrete_symmetries: Optional[torch.Tensor]
+    ) -> (int, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]):
+        return idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
+
+    def transform(
+            self,
+            idx: int,
+            points: torch.Tensor,
+            planar_symmetries: Optional[torch.Tensor],
+            axis_continue_symmetries: Optional[torch.Tensor],
+            axis_discrete_symmetries: Optional[torch.Tensor]
+    ) -> (int, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]):
+        return idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries

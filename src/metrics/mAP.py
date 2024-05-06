@@ -6,13 +6,13 @@ from src.utils.plane import SymPlane
 
 def get_match_sequence(y_pred, y_true, points, eps, theta):
     m = y_pred.shape[0]
-    k = y_true.shape[0]
 
     dist_threshold = get_diagonals_length(points) * eps
 
     y_pred = [SymPlane.from_tensor(y_pred[idx, 0:6], y_pred[idx, -1]) for idx in range(m)]
     y_pred = sorted(y_pred, key=lambda x: x.confidence, reverse=True)
 
+    k = y_true.shape[0]
     y_true = [SymPlane.from_tensor(y_true[idx, 0:6]) for idx in range(k)]
     match_sequence = torch.zeros(m)
 
@@ -82,9 +82,17 @@ def calculate_average_precision(points, y_pred, y_true, eps, theta):
     :param theta:
     :return:
     """
+    # Edge case where there are no known plane symmetries
+    # Only true when the confidence is very low => The model knows there prob would be any symmetries.
+    # That 0.1 should be a hparam but right now its fixed to test.
     if y_true is None:
-        return 0.0
-
+        m = y_pred.shape[0]
+        y_pred = [SymPlane.from_tensor(y_pred[idx, 0:6], y_pred[idx, -1]) for idx in range(m)]
+        y_pred = sorted(y_pred, key=lambda x: x.confidence, reverse=True)
+        if y_pred[0].confidence < 0.1:
+            return 1.0
+        else:
+            return 0.0
     match_sequence = get_match_sequence(y_pred, y_true, points, eps, theta)
     uninterpolated_pr_curve = get_pr_curve(match_sequence, y_true.shape[0])
     interpolated_pr_curve = interpolate_pr_curve(uninterpolated_pr_curve)

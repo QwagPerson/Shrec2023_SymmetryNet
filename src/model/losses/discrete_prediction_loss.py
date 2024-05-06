@@ -57,24 +57,32 @@ def calculate_loss_aux(
     m = y_pred.shape[0]
     confidences = y_pred[:, -1]
 
-    # c_hat : One-Hot M
-    # matched_y_pred : K x 7
-    c_hat, matched_y_pred = get_optimal_assignment(points, y_pred, y_true, cost_matrix_method)
+    # Case where are no symmetries
+    if y_true is None:
+        matched_y_pred = None
+        c_hat = torch.zeros(m, device=y_pred.device)
+    else:
+        # c_hat : One-Hot M
+        # matched_y_pred : K x 7
+        c_hat, matched_y_pred = get_optimal_assignment(points, y_pred, y_true, cost_matrix_method)
 
     confidence_loss = nn.functional.binary_cross_entropy(confidences, c_hat) * weights[0]
 
-    sde_loss = calculate_sde_loss(points, matched_y_pred[:, 0:6], y_true) * weights[1]
-
-    distance_loss = calculate_distance_loss(matched_y_pred[:, 0:6], y_true) * weights[2]
-
-    angle_loss = calculate_angle_loss(matched_y_pred[:, 0:6], y_true) * weights[3]
-
-    total_loss = confidence_loss + sde_loss + angle_loss + distance_loss
+    if matched_y_pred is not None:
+        sde_loss = calculate_sde_loss(points, matched_y_pred[:, 0:6], y_true) * weights[1]
+        distance_loss = calculate_distance_loss(matched_y_pred[:, 0:6], y_true) * weights[2]
+        angle_loss = calculate_angle_loss(matched_y_pred[:, 0:6], y_true) * weights[3]
+        total_loss = confidence_loss + sde_loss + angle_loss + distance_loss
+    else:
+        sde_loss = "Not defined"
+        distance_loss = "Not defined"
+        angle_loss = "Not defined"
+        total_loss = confidence_loss
 
     if show_loss_log:
-        torch.set_printoptions  (linewidth=200)
-        torch.set_printoptions  (precision=3)
-        torch.set_printoptions  (sci_mode=False)
+        torch.set_printoptions(linewidth=200)
+        torch.set_printoptions(precision=3)
+        torch.set_printoptions(sci_mode=False)
         print(f"conf_loss    : {(confidence_loss / total_loss).item():.2f} | {confidence_loss.item()}")
         print(f"sde_loss     : {(sde_loss / total_loss).item():.2f} | {sde_loss.item()}")
         print(f"angle_loss   : {(angle_loss / total_loss).item():.2f} | {angle_loss.item()}")
@@ -103,14 +111,14 @@ def calculate_loss(
     :return:
     """
     _, points, y_true, _, _, _ = batch
-    bs     = points.shape[0]
-    loss   = torch.tensor([0.0], device=points.device)
+    bs = points.shape[0]
+    loss = torch.tensor([0.0], device=points.device)
     losses = torch.zeros(bs, device=points.device)
 
     if show_losses:
-        torch.set_printoptions  (linewidth=200)
-        torch.set_printoptions  (precision=3)
-        torch.set_printoptions  (sci_mode=False)
+        torch.set_printoptions(linewidth=200)
+        torch.set_printoptions(precision=3)
+        torch.set_printoptions(sci_mode=False)
         print(f"Points shape {points.shape}")
         print(f"Y_true shape {len(y_true)} - {y_true[0].shape = }")
         print(f"Y_pred shape {len(y_pred)} - {y_pred.shape = }")
@@ -119,10 +127,6 @@ def calculate_loss(
         curr_points = points[b_idx]
         curr_y_true = y_true[b_idx]
         curr_y_pred = y_pred[b_idx]
-
-        if curr_y_true is None:
-            bs -= 1
-            continue
 
         losses[b_idx] = calculate_loss_aux(
             curr_points, curr_y_pred, curr_y_true,
@@ -133,5 +137,5 @@ def calculate_loss(
             print(f"{[b_idx]} Y_true\n{curr_y_true}")
             print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
             print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
-    loss = torch.sum(losses) / max(1, bs)
-    return loss # / bs
+    loss = torch.sum(losses) / bs
+    return loss  # / bs

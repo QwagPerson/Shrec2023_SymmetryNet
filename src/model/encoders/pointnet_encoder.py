@@ -129,7 +129,7 @@ class PointNetEncoder(nn.Module):
 
 if __name__ == "__main__":
     bs, sz = 16, 1024
-    encoder = PointNetEncoder()
+    encoder = PointNetEncoder(use_bn=True)
     mock_x = torch.randn(bs, 3, sz)
     output = encoder.forward(mock_x)
     assert output.shape == (bs, 1024), f"Got {output.shape}"

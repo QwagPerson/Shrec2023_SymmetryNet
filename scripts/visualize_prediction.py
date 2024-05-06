@@ -42,6 +42,7 @@ def visualize_prediction(pred_planes, input_points, real_planes):
     ps.register_point_cloud("original pcd", input_points.detach().numpy())
 
     for idx, sym_plane in enumerate(original_symmetries):
+        """
         ps.register_surface_mesh(
             f"original_sym_plane_{idx}",
             sym_plane.coords,
@@ -49,8 +50,15 @@ def visualize_prediction(pred_planes, input_points, real_planes):
             enabled=True,
             transparency=0.5
         )
+        """
+        import numpy as np
+        ps.register_curve_network(f"true_axis_{idx}",
+                                  np.array([-1 * sym_plane.normal + sym_plane.point, 1 * sym_plane.normal + sym_plane.point]),
+                                  np.array([[0, 1]])
+                                  )
 
     for idx, sym_plane in enumerate(predicted_symmetries):
+        """
         ps.register_surface_mesh(
             f"predicted_sym_plane_{idx}",
             sym_plane.coords,
@@ -58,6 +66,12 @@ def visualize_prediction(pred_planes, input_points, real_planes):
             enabled=False,
             transparency=0.5
         )
+        """
+        import numpy as np
+        ps.register_curve_network(f"predicted_axis_{idx}",
+                                  np.array([-0.8 * sym_plane.normal + sym_plane.point, 0.8 * sym_plane.normal + sym_plane.point]),
+                                  np.array([[0, 1]])
+                                  )
 
     ps.show()
 

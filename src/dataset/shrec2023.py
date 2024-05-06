@@ -5,7 +5,6 @@ from typing import Optional, List, Tuple
 
 import lightning
 import numpy as np
-import pandas as pd
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -32,8 +31,8 @@ def parse_sym_file(fname):
             if line[0] == "plane":
                 plane = [float(x)for x in line[1::]]
                 planar_symmetries.append(torch.tensor(plane))
-            elif line[0] == "axis" and line[:-1] == "inf":
-                plane = [float(x) for x in line[1:-2]]
+            elif line[0] == "axis" and line[-1] == "inf":
+                plane = [float(x) for x in line[1:7]]
                 axis_continue_symmetries.append(torch.tensor(plane))
             else:
                 plane = [float(x) for x in line[1::]]
@@ -187,7 +186,10 @@ class SymmetryDataModule(lightning.LightningDataModule):
         self.does_predict_has_ground_truths = does_predict_has_ground_truths
         self.batch_size = batch_size
         self.transform = default_transform if transform is None else transform
-        self.collate_function = default_symmetry_dataset_collate_fn_list_sym if collate_function is None else collate_function
+        if collate_function is None:
+            self.collate_function = default_symmetry_dataset_collate_fn_list_sym
+        else:
+            self.collate_function = collate_function
         self.shuffle = shuffle
         self.n_workers = n_workers
 
@@ -269,7 +271,7 @@ if __name__ == "__main__":
     valid_dataset = SymmetryDataset(Path(DATA_PATH) / 'valid', default_transform)
     test_dataset = SymmetryDataset(Path(DATA_PATH) / 'test', default_transform)
 
-    example_idx, example_points, example_syms_0, example_syms_1, example_syms_2, example_tr = train_dataset[5]
+    example_idx, example_points, example_syms_0, example_syms_1, example_syms_2, example_tr = train_dataset[724]
 
     if example_syms_0.shape[0] != 0:
         example_syms = example_syms_0
@@ -307,8 +309,8 @@ if __name__ == "__main__":
 
     visualize_prediction(example_syms, example_points, example_syms)
 
-    for x in batch:
-        if isinstance(x, torch.Tensor):
-            print(x.shape)
+    for z in batch:
+        if isinstance(z, torch.Tensor):
+            print(z.shape)
         else:
-            print(len(x))
+            print(len(z))

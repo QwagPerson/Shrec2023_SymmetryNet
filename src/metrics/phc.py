@@ -20,8 +20,14 @@ def calculate_matching(points, y_pred, y_true, eps, theta):
     y_pred = y_pred[confidences][0]
     y_pred = SymPlane.from_tensor(y_pred, y_pred[-1])
 
+    # Edge case where there are no known plane symmetries
+    # Only true when the confidence is very low => The model knows there prob would be any symmetries.
+    # That 0.1 should be a hparam but right now its fixed to test.
     if y_true is None:
-        return 0
+        if y_pred.confidence < 0.1:
+            return 1
+        else:
+            return 0
 
     for idx in range(y_true.shape[0]):
         a_y_true = SymPlane.from_tensor(y_true[idx])
