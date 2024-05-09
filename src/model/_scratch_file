@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+
+import lightning
+
+from src.dataset.SymmetryDataModule import default_symmetry_dataset_collate_fn_list_sym, SymmetryDataModule
+from src.dataset.transforms.ComposeTransform import ComposeTransform
+from src.dataset.transforms.RandomSampler import RandomSampler
+from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
+from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
+
+if __name__ == "__main__":
+
+    DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/"
+    BATCH_SIZE = 3
+    PREDICT_SAMPLES = 1
+    SAMPLE_SIZE = 14_440
+    COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
+    NUM_WORKERS = 15
+
+    scaler = UnitSphereNormalization()
+    sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
+    compose_transform = ComposeTransform([sampler, scaler])
+
+    datamodule = SymmetryDataModule(
+        dataset_path=DATA_PATH,
+        predict_data_path=DATA_PATH,
+        does_predict_has_ground_truths=True,
+        batch_size=BATCH_SIZE,
+        transform=compose_transform,
+        collate_function=default_symmetry_dataset_collate_fn_list_sym,
+        shuffle=True,
+        n_workers=1,
+    )
+    datamodule.setup("predict")
+    datamodule.setup("fit")
+
+    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=2,
+                                         amount_of_axis_discrete_normals_predicted=2,
+                                         amount_of_axis_continue_normals_predicted=2, )
+
+    test_batch = next(iter(datamodule.train_dataloader()))
+
+    test_net.training_step(batch=test_batch, batch_idx=0, dataloader_idx=0)
+
+    trainer = lightning.Trainer(enable_progress_bar=True, logger=False)
+    trainer.fit(test_net, datamodule)
+
+    """
+    print(f'Training dataset has: {len(datamodule.train_dataset) = } batches')
+    train_dataloader = datamodule.train_dataloader()
+    print(f'Train dataloader has: {len(train_dataloader) = } batches')
+    val_dataloader = datamodule.val_dataloader()
+    print(f'Valid dataloader has: {len(val_dataloader) = } batches')
+
+    print(f'Predict dataset has: {len(datamodule.predict_dataset) = } batches')
+    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(1, PREDICT_SAMPLES)])
+    print(f'Predict dataset has: {len(predict_dataset) = } batches')
+    predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
+                                    collate_fn=COLLATE_FN, num_workers=NUM_WORKERS)
+    print(f'Predict dataloader has: {len(predict_dataloader) = } batches')
+
+    predictions = trainer.predict(test_net, predict_dataloader)
+
+    print(f'Predictions: {len(predictions)}')
+    pr_idx = random.randint(0, len(predictions) - 1)
+    print(f'Taking batch no. {pr_idx}')
+    batch, y_pred = predictions[pr_idx]
+    _, points, y_true, _ = batch
+
+    torch.set_printoptions(linewidth=200)
+    torch.set_printoptions(precision=3)
+    torch.set_printoptions(sci_mode=False)
+
+    print(f"Batch size: {len(y_true)}")
+    idx = random.randint(0, len(y_true) - 1)
+    print(f"Comparing element: {idx} in batch...")
+    gt = y_true[idx]
+    pr = y_pred[idx][y_pred[idx][:, -1].sort(descending=True).indices]
+    match_sequence = get_match_sequence(pr, gt, points[idx], eps=0.01, theta=0.0174533)
+
+    print(f'Ground truth:\n{gt}')
+    print(f'Prediction  :\n{pr}')
+    print(f'Match Sequence: \n{match_sequence}')
+
+    print("Normal metrics")
+    print("PHC", get_phc(predictions).item())
+    print("MAP", get_mean_average_precision(predictions).item())
+
+    print("Normals matching")
+    print("PHC", get_phc(predictions, eps=1).item())
+    print("MAP", get_mean_average_precision(predictions, eps=1).item())
+
+    print("Center matching")
+    print("PHC", get_phc(predictions, theta=10).item())
+    print("MAP", get_mean_average_precision(predictions, theta=10).item())
+    """

@@ -134,10 +134,10 @@ def get_mean_average_precision(predictions, eps=0.01, theta=0.0174533):
     """
     device_used = predictions[0][1].device
     average_precisions_per_batch = []
-    for (batch, y_pred) in predictions:
+    for (batch, plane_predictions) in predictions:
         average_precisions_per_batch.append(torch.tensor(get_average_precision(
             batch,
-            y_pred,
+            plane_predictions,
             eps,
             theta
         ), device=device_used))

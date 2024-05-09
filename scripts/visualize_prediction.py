@@ -5,9 +5,9 @@ import polyscope as ps
 from lightning import Trainer
 from torch.utils.data import DataLoader, Subset
 
-from src.dataset.shrec2023 import SymmetryDataModule, default_symmetry_dataset_collate_fn_list_sym
-from src.metrics.mAP import get_mean_average_precision, get_match_sequence
-from src.model.center_n_normals_net import LightingCenterNNormalsNet
+from src.dataset._scratch_file import SymmetryDataModule, default_symmetry_dataset_collate_fn_list_sym
+from src.metrics.MAP import get_mean_average_precision, get_match_sequence
+from src.model._scratch_file import LightingCenterNNormalsNet
 from src.utils.plane import SymmetryPlane
 
 

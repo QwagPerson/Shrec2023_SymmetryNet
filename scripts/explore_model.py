@@ -4,7 +4,7 @@ import torch
 from src.dataset.preprocessing import ComposeTransform, RandomSampler, UnitSphereNormalization
 from src.model.loss.center_loss import center_loss
 from src.model.network import LightingSymmetryNet
-from src.dataset.shrec2023 import SymmetryDataModule, default_symmetry_dataset_collate_fn, \
+from src.dataset._scratch_file import SymmetryDataModule, default_symmetry_dataset_collate_fn, \
     default_symmetry_dataset_collate_fn_list_sym
 from torch.utils.data import Dataset
 from torch.utils.data import random_split, DataLoader, Subset
