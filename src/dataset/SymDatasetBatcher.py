@@ -11,6 +11,9 @@ class SymDatasetBatcher:
         self.size = len(item_list)
         self.device = item_list[0].points.device
 
+    def get_filenames(self):
+        return [item.filename for item in self.item_list]
+
     def get_points(self):
         return [item.points for item in self.item_list]
 

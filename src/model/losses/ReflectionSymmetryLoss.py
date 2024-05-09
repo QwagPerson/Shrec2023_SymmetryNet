@@ -26,7 +26,7 @@ class ReflectionSymmetryLoss(nn.Module):
         batch, plane_predictions, plane_c_hats, matched_plane_pred, matched_plane_real = bundled_plane_predictions
 
         batch_size = batch.size
-        losses = torch.zeros(batch_size, device=batch.device)
+        loss_matrix = torch.zeros((batch_size, 4), device=batch.device)
 
         for b_idx in range(batch_size):
             item = batch.item_list[b_idx]
@@ -41,7 +41,7 @@ class ReflectionSymmetryLoss(nn.Module):
             conf_loss = self.confidence_weight * self.confidence_loss(curr_conf_pred, curr_conf_true)
 
             if curr_y_true is None:
-                losses[b_idx] = conf_loss
+                loss_matrix[b_idx, 0] = conf_loss
                 continue
 
             curr_normal_true = curr_y_true[:, 0:3]
@@ -62,12 +62,10 @@ class ReflectionSymmetryLoss(nn.Module):
                                             )
                                             )
 
-            losses[b_idx] = (
-                    conf_loss +
-                    normal_loss +
-                    distance_loss +
-                    reflection_symmetry_distance
-            )
+            loss_matrix[b_idx, 0] = conf_loss
+            loss_matrix[b_idx, 1] = normal_loss
+            loss_matrix[b_idx, 2] = distance_loss
+            loss_matrix[b_idx, 3] = reflection_symmetry_distance
 
-        loss = torch.sum(losses) / batch_size
-        return loss
+        loss = torch.sum(loss_matrix) / batch_size
+        return loss, loss_matrix.sum(dim=0)

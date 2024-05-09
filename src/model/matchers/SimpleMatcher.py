@@ -35,7 +35,7 @@ class SimpleMatcher:
         c_hat = create_onehot(row_id, m, device=points.device)
         y_pred = y_pred[row_id, :]
         y_true = y_true[col_id, :]
-        return c_hat, y_pred, y_true
+        return c_hat, y_pred, y_true, row_id, col_id
 
     def get_optimal_assignment(self, points, y_pred, y_true):
         """
@@ -50,18 +50,24 @@ class SimpleMatcher:
         c_hats = []
         matches_y_pred = []
         matches_y_true = []
+        assignments_y_pred_2_y_true = []
+        assignments_y_true_2_y_pred = []
 
         for idx in range(batch_size):
             if y_true[idx] is None:
                 c_hats.append(torch.zeros(head_amount))
                 matches_y_pred.append(None)
                 matches_y_true.append(None)
+                assignments_y_pred_2_y_true.append(None)
+                assignments_y_true_2_y_pred.append(None)
             else:
-                c_hat, match_y_pred, match_y_true = self.get_optimal_assignment_aux(points[idx], y_pred[idx], y_true[idx])
+                c_hat, match_y_pred, match_y_true, pred2true, true2pred = self.get_optimal_assignment_aux(points[idx], y_pred[idx], y_true[idx])
                 c_hats.append(c_hat)
                 matches_y_pred.append(match_y_pred)
                 matches_y_true.append(match_y_true)
+                assignments_y_pred_2_y_true.append(pred2true)
+                assignments_y_true_2_y_pred.append(true2pred)
 
 
-        return c_hats, matches_y_pred, matches_y_true
+        return c_hats, matches_y_pred, matches_y_true, assignments_y_pred_2_y_true, assignments_y_true_2_y_pred
 

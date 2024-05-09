@@ -34,9 +34,9 @@ if __name__ == "__main__":
     datamodule.setup("predict")
     datamodule.setup("fit")
 
-    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=0,
+    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=10,
                                          amount_of_axis_discrete_normals_predicted=0,
-                                         amount_of_axis_continue_normals_predicted=2, )
+                                         amount_of_axis_continue_normals_predicted=0, )
 
     test_batch = next(iter(datamodule.train_dataloader()))
 

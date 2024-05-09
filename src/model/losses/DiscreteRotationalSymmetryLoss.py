@@ -29,7 +29,7 @@ class DiscreteRotationalSymmetryLoss(nn.Module):
         batch, predictions, c_hats, matched_pred, matched_real = bundled_discrete_rotational_predictions
 
         batch_size = batch.size
-        losses = torch.zeros(batch_size, device=batch.device)
+        loss_matrix = torch.zeros((batch_size, 5), device=batch.device)
 
         for b_idx in range(batch_size):
             item = batch.item_list[b_idx]
@@ -44,7 +44,7 @@ class DiscreteRotationalSymmetryLoss(nn.Module):
             conf_loss = self.confidence_weight * self.confidence_loss(curr_conf_pred, curr_conf_true)
 
             if curr_y_true is None:
-                losses[b_idx] = conf_loss
+                loss_matrix[b_idx, 0] = conf_loss
                 continue
 
             curr_normal_true = curr_y_true[:, 0:3]
@@ -61,7 +61,7 @@ class DiscreteRotationalSymmetryLoss(nn.Module):
 
             angle_loss = self.angle_weight * self.angle_loss(curr_angle_pred, curr_angle_true)
 
-            reflection_symmetry_distance = (self.rotational_symmetry_distance_weight *
+            rotational_symmetry_distance = (self.rotational_symmetry_distance_weight *
                                             self.rotational_symmetry_distance(
                                                 curr_points,
                                                 curr_normal_pred, curr_normal_true,
@@ -70,13 +70,11 @@ class DiscreteRotationalSymmetryLoss(nn.Module):
                                             )
                                             )
 
-            losses[b_idx] = (
-                    conf_loss +
-                    normal_loss +
-                    distance_loss +
-                    angle_loss +
-                    reflection_symmetry_distance
-            )
+            loss_matrix[b_idx, 0] = conf_loss
+            loss_matrix[b_idx, 1] = normal_loss
+            loss_matrix[b_idx, 2] = distance_loss
+            loss_matrix[b_idx, 3] = rotational_symmetry_distance
+            loss_matrix[b_idx, 4] = angle_loss
 
-        loss = torch.sum(losses) / batch_size
-        return loss
+        loss = torch.sum(loss_matrix) / batch_size
+        return loss, loss_matrix.sum(dim=0)
