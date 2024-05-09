@@ -8,11 +8,15 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
+from src.dataset.SymDatasetItem import SymDatasetItem
 from src.dataset.transforms.AbstractTransform import AbstractTransform
+from src.dataset.transforms.ComposeTransform import ComposeTransform
 from src.dataset.transforms.IdentityTransform import IdentityTransform
+from src.dataset.transforms.RandomSampler import RandomSampler
+from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
 
 
-class SymmetryDataset(Dataset):
+class SymDataset(Dataset):
     def __init__(
             self,
             data_source_path: str = "path/to/dataset/split",
@@ -117,8 +121,10 @@ class SymmetryDataset(Dataset):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, idx: int) -> (int, torch.Tensor, Optional[torch.Tensor], List[AbstractTransform]):
+    def __getitem__(self, idx: int) -> SymDatasetItem:
+        fname, _ = self._filename_from_idx(idx)
         points = self.read_points(idx)
+
         planar_symmetries = None
         axis_continue_symmetries = None
         axis_discrete_symmetries = None
@@ -126,12 +132,30 @@ class SymmetryDataset(Dataset):
         if self.has_ground_truth:
             planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries = self.read_planes(idx)
 
-        if self.transform is not None:
-            idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries = self.transform(
-                idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
-            )
+        idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries = self.transform(
+            idx, points, planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
+        )
 
         transform_used = copy.deepcopy(self.transform)
-        return (idx, points.float(),
-                planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries,
-                transform_used)
+
+        dataset_item = SymDatasetItem(
+            fname.stem,
+            idx, points.float(),
+            planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries,
+            transform_used
+        )
+
+        return dataset_item
+
+
+if __name__ == "__main__":
+    dataset = SymDataset("/data/sym-10k-xz-split-class-noparallel/train",
+                         ComposeTransform(
+                                  [RandomSampler(sample_size=3),
+                                   UnitSphereNormalization()]
+                              )
+                         )
+    xd = dataset[0]
+    print(xd)
+    print(xd.shape_type, xd.perturbation_type)
+    print(xd.get_shape_type_classification_label())

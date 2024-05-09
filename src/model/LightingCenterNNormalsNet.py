@@ -81,117 +81,85 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         optimizer = torch.optim.Adam(self.parameters())
         return optimizer
 
+    def _process_prediction(self, batch, sym_pred, sym_true, loss_fun, sym_tag, step_tag):
+        c_hat, match_pred, match_true = self.matcher.get_optimal_assignment(batch.get_points(), sym_pred, sym_true)
+        bundled_predictions = (batch, sym_pred, c_hat, match_pred, match_true)
+        loss = loss_fun(bundled_predictions)
+
+        eval_predictions = [(batch.get_points(), sym_pred, sym_true)]
+        map = get_mean_average_precision(eval_predictions)
+        phc = get_phc(eval_predictions)
+
+        self.log(f"{sym_tag}_{step_tag}_loss", loss, on_step=True, on_epoch=True,
+                 prog_bar=True, sync_dist=True, batch_size=batch.size)
+        self.log(f"{sym_tag}_{step_tag}_MAP", map, on_step=False, on_epoch=True,
+                 prog_bar=True, sync_dist=True, batch_size=batch.size)
+        self.log(f"{sym_tag}_{step_tag}_PHC", phc, on_step=False, on_epoch=True,
+                 prog_bar=False, sync_dist=True, batch_size=batch.size)
+
+        return loss, map, phc
+
     def training_step(self, batch, batch_idx, dataloader_idx=0):
-        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
+        points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
+
         plane_predictions, axis_discrete_predictions, axis_continue_predictions = self.net.forward(points)
+        loss = torch.tensor(0.0, device=points.device)
 
         if plane_predictions is not None:
-            plane_c_hats, matched_plane_pred, matched_plane_true = self.matcher.get_optimal_assignment(points,
-                                                                                                       plane_predictions,
-                                                                                                       planar_syms)
+            plane_loss, plane_map, plane_phc = self._process_prediction(
+                batch, plane_predictions, batch.get_plane_syms(), self.plane_loss,
+                "plane", "train"
+            )
+            loss += plane_loss
 
         if axis_discrete_predictions is not None:
-            axis_discrete_c_hats, matched_axis_discrete_pred, matched_axis_discrete_true = self.matcher.get_optimal_assignment(
-                points, axis_discrete_predictions, axis_discrete_syms)
+            discrete_axis_loss, map_discrete_axis, phc_discrete_axis = self._process_prediction(
+                batch, axis_discrete_predictions, batch.get_axis_discrete_syms(), self.discrete_rotational_loss,
+                "d_axis", "train"
+            )
+            loss += discrete_axis_loss
 
         if axis_continue_predictions is not None:
-            axis_continue_c_hats, matched_axis_continue_pred, matched_axis_continue_true = self.matcher.get_optimal_assignment(
-                points, axis_continue_predictions, axis_continue_syms)
+            continue_axis_loss, map_continue_axis, phc_continue_axis = self._process_prediction(
+                batch, axis_continue_predictions, batch.get_axis_continue_syms(), self.continue_rotational_loss,
+                "c_axis", "train"
 
-        ##################
-        # Continue Axis
-        ##################
-        bundled_axis_continue_predictions = (
-            batch, axis_continue_predictions, axis_continue_c_hats, matched_axis_continue_pred, matched_axis_continue_true)
-        continue_axis_loss = self.continue_rotational_loss(bundled_axis_continue_predictions)
+            )
+            loss += continue_axis_loss
 
-        bundled_continue_axis_predictions = [(batch, axis_continue_predictions)]
-        map_continue_axis = get_mean_average_precision(bundled_continue_axis_predictions)
-        phc_continue_axis = get_phc(bundled_continue_axis_predictions)
-
-
-        ##################
-        # Discrete Axis
-        ##################
-        bundled_axis_discrete_predictions = (
-            batch, axis_discrete_predictions, axis_discrete_c_hats, matched_axis_discrete_pred, matched_axis_discrete_true)
-        discrete_axis_loss = self.discrete_rotational_loss(bundled_axis_discrete_predictions)
-
-        eval_axis_discrete_predictions = [(batch, axis_discrete_predictions)]
-        map_discrete_axis = get_mean_average_precision(eval_axis_discrete_predictions)
-        phc_discrete_axis = get_phc(eval_axis_discrete_predictions)
-
-        ##################
-        # Plane
-        ##################
-        bundled_plane_predictions = (batch, plane_predictions, plane_c_hats, matched_plane_pred, matched_plane_true)
-        plane_loss = self.plane_loss(bundled_plane_predictions)
-
-        eval_plan_predictions = [(batch, plane_predictions)]
-        map_plane = get_mean_average_precision(eval_plan_predictions)
-        phc_plane = get_phc(eval_plan_predictions)
-
-        ##################
-        # Continue Axis
-        ##################
-        bundled_axis_continue_predictions = (
-            batch, axis_continue_predictions, axis_continue_c_hats, matched_axis_continue_pred, matched_axis_continue_true)
-        continue_axis_loss = self.continue_rotational_loss(bundled_axis_continue_predictions)
-
-        bundled_continue_axis_predictions = [(batch, axis_continue_predictions)]
-        map_continue_axis = get_mean_average_precision(bundled_continue_axis_predictions)
-        phc_continue_axis = get_phc(bundled_continue_axis_predictions)
-
-        ##################
-        # Bundling loss
-        ##################
-
-        loss = plane_loss + discrete_axis_loss + continue_axis_loss
-        ##################
-        # Logging
-        ##################
-
-        self.log("train_loss", loss, on_step=True, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
-        self.log("train_MAP", map_plane, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
-        self.log("train_PHC", phc_plane, on_step=False, on_epoch=True,
-                 prog_bar=False, sync_dist=True, batch_size=len(planar_syms))
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
+        points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 
         plane_predictions, axis_discrete_predictions, axis_continue_predictions = self.net.forward(points)
-        plane_c_hats, matched_plane_pred = self.matcher.get_optimal_assignment(points, plane_predictions, planar_syms)
-        axis_discrete_c_hat, matched_axis_discrete_pred = self.matcher.get_optimal_assignment(points,
-                                                                                              axis_discrete_predictions,
-                                                                                              axis_discrete_syms)
-        axis_continue_c_hat, matched_axis_continue_pred = self.matcher.get_optimal_assignment(points,
-                                                                                              axis_continue_predictions,
-                                                                                              axis_continue_syms)
+        loss = torch.tensor(0.0, device=points.device)
 
-        bundled_plane_predictions = (batch, plane_predictions, plane_c_hats, matched_plane_pred)
+        if plane_predictions is not None:
+            plane_loss, plane_map, plane_phc = self._process_prediction(
+                batch, plane_predictions, batch.get_plane_syms(), self.plane_loss,
+                "plane", "val"
+            )
+            loss += plane_loss
 
-        ##################
-        # Plane
-        ##################
-        plane_loss = self.plane_loss(bundled_plane_predictions)
+        if axis_discrete_predictions is not None:
+            discrete_axis_loss, map_discrete_axis, phc_discrete_axis = self._process_prediction(
+                batch, axis_discrete_predictions, batch.get_axis_discrete_syms(), self.discrete_rotational_loss,
+                "d_axis", "val"
+            )
+            loss += discrete_axis_loss
 
-        prediction = [(batch, plane_predictions)]
-        mean_avg_precision = get_mean_average_precision(prediction)
-        phc = get_phc(prediction)
+        if axis_continue_predictions is not None:
+            continue_axis_loss, map_continue_axis, phc_continue_axis = self._process_prediction(
+                batch, axis_continue_predictions, batch.get_axis_continue_syms(), self.continue_rotational_loss,
+                "c_axis", "val"
 
-        self.log("val_loss", plane_loss, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
-        self.log("val_MAP", mean_avg_precision, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
-        self.log("val_PHC", phc, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True, batch_size=len(planar_syms))
+            )
+            loss += continue_axis_loss
 
-        return plane_loss
+        return loss
 
     def test_step(self, batch, batch_idx):
         idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch

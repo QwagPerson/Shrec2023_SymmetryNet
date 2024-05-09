@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from lightning.pytorch.cli import LightningCLI
-from src.dataset.SymmetryDataModule import SymmetryDataModule
+from src.dataset.SymDataModule import SymDataModule
 from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 
 
 def cli_main():
-    cli = LightningCLI(LightingCenterNNormalsNet, SymmetryDataModule)
+    cli = LightningCLI(LightingCenterNNormalsNet, SymDataModule)
 
 
 if __name__ == "__main__":

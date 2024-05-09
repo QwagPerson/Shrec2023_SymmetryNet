@@ -1,26 +1,21 @@
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Callable, List
 
 import lightning
-import torch
 from torch.utils.data import DataLoader
 
-from src.dataset.SymmetryDataset import SymmetryDataset
+from src.dataset.SymDataset import SymDataset
+from src.dataset.SymDatasetBatcher import SymDatasetBatcher
+from src.dataset.SymDatasetItem import SymDatasetItem
 from src.dataset.transforms.AbstractTransform import AbstractTransform
 from src.dataset.transforms.IdentityTransform import IdentityTransform
 
 
-def default_symmetry_dataset_collate_fn_list_sym(batch):
-    idxs = torch.tensor([item[0] for item in batch])
-    points = torch.stack([item[1] for item in batch])
-    planar_syms = [item[2] for item in batch]
-    axis_continue_syms = [item[3] for item in batch]
-    axis_discrete_syms = [item[4] for item in batch]
-    transforms = [item[5] for item in batch]
-    return idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms
+def custom_collate_fn(item_list: List[SymDatasetItem]) -> SymDatasetBatcher:
+    return SymDatasetBatcher(item_list)
 
 
-class SymmetryDataModule(lightning.LightningDataModule):
+class SymDataModule(lightning.LightningDataModule):
     def __init__(
             self,
             dataset_path: str = "/path/to/dataset",
@@ -28,7 +23,7 @@ class SymmetryDataModule(lightning.LightningDataModule):
             does_predict_has_ground_truths: bool = False,
             batch_size: int = 2,
             transform: AbstractTransform = IdentityTransform(),
-            collate_function: Callable = default_symmetry_dataset_collate_fn_list_sym,
+            collate_function: Callable = custom_collate_fn,
             shuffle: bool = True,
             n_workers: int = 1,
     ):
@@ -56,26 +51,26 @@ class SymmetryDataModule(lightning.LightningDataModule):
 
     def setup(self, stage: str):
         if stage == "fit":
-            self.train_dataset = SymmetryDataset(
+            self.train_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'train',
                 transform=self.transform,
                 has_ground_truth=True
             )
-            self.valid_dataset = SymmetryDataset(
+            self.valid_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'valid',
                 transform=self.transform,
                 has_ground_truth=True
             )
 
         if stage == "test":
-            self.test_dataset = SymmetryDataset(
+            self.test_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'test',
                 transform=self.transform,
                 has_ground_truth=True
             )
 
         if stage == "predict":
-            self.predict_dataset = SymmetryDataset(
+            self.predict_dataset = SymDataset(
                 data_source_path=self.predict_data_path,
                 transform=self.transform,
                 has_ground_truth=self.does_predict_has_ground_truths

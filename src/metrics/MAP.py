@@ -101,7 +101,7 @@ def calculate_average_precision(points, y_pred, y_true, eps, theta):
     return average_precision
 
 
-def get_average_precision(batch, y_pred_list, eps, theta):
+def get_average_precision(points_list, y_pred_list, y_true_list, eps, theta):
     """
 
     :param batch:
@@ -112,13 +112,12 @@ def get_average_precision(batch, y_pred_list, eps, theta):
     :param eps:
     :return:
     """
-    _, batched_points, y_true_list, _, _, _ = batch
     batch_size = len(y_true_list)
     average_precision_list = []
     for idx in range(batch_size):
-        points = batched_points[idx]
-        y_true = y_true_list[idx]
+        points = points_list[idx]
         y_pred = y_pred_list[idx]
+        y_true = y_true_list[idx]
         average_precision_list.append(
             calculate_average_precision(points, y_pred, y_true, eps, theta)
         )
@@ -127,17 +126,15 @@ def get_average_precision(batch, y_pred_list, eps, theta):
 
 def get_mean_average_precision(predictions, eps=0.01, theta=0.0174533):
     """
-    List of predictions
-    :param predictions: List[P] where
-        it contains the (batch, y_pred) that depends of batch_size
     :return:
     """
     device_used = predictions[0][1].device
     average_precisions_per_batch = []
-    for (batch, plane_predictions) in predictions:
+    for (points_list, y_pred_list, y_true_list) in predictions:
         average_precisions_per_batch.append(torch.tensor(get_average_precision(
-            batch,
-            plane_predictions,
+            points_list,
+            y_pred_list,
+            y_true_list,
             eps,
             theta
         ), device=device_used))

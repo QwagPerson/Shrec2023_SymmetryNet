@@ -27,14 +27,14 @@ class DiscreteRotationalSymmetryLoss(nn.Module):
 
     def forward(self, bundled_discrete_rotational_predictions):
         batch, predictions, c_hats, matched_pred, matched_real = bundled_discrete_rotational_predictions
-        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
 
-        batch_size = points.shape[0]
-        losses = torch.zeros(batch_size, device=points.device)
+        batch_size = batch.size
+        losses = torch.zeros(batch_size, device=batch.device)
 
         for b_idx in range(batch_size):
+            item = batch.item_list[b_idx]
 
-            curr_points = points[b_idx]
+            curr_points = item.points
 
             curr_y_true = matched_real[b_idx]
             curr_y_pred = matched_pred[b_idx]

@@ -40,21 +40,11 @@ def calculate_matching(points, y_pred, y_true, eps, theta):
     return matched
 
 
-def get_matches_amount(batch, y_pred_list, eps, theta):
-    """
-    :param batch:
-        batched_points: B x N x 3
-        y_true_list: List[B] -> K x 6
-    :param y_pred_list: List[B] -> M x 7
-    :param theta:
-    :param eps:
-    :return: float
-    """
-    _, batched_points, y_true_list, _, _, _ = batch
+def get_matches_amount(points_list, y_pred_list, y_true_list, eps, theta):
     batch_size = len(y_true_list)
     matches = 0
     for idx in range(batch_size):
-        points = batched_points[idx]
+        points = points_list[idx]
         y_true = y_true_list[idx]
         y_pred = y_pred_list[idx]
         matches += calculate_matching(points, y_pred, y_true, eps, theta)
@@ -62,19 +52,12 @@ def get_matches_amount(batch, y_pred_list, eps, theta):
 
 
 def get_phc(predictions, eps=0.01, theta=0.0174533):
-    """
-    List of predictions
-    :param eps: Percentage of diagonal. Controls distance Threshold
-    :param theta: Percentage of Angle. Control angle Threshold
-    :param predictions: List[P] where
-        it contains the (batch, y_pred) that depends of batch_size
-    :return:
-    """
     total_matches = 0.0
-    for (batch, y_pred) in predictions:
+    for (points_list, y_pred_list, y_true_list) in predictions:
         total_matches += get_matches_amount(
-            batch,
-            y_pred,
+            points_list,
+            y_pred_list,
+            y_true_list,
             eps,
             theta
         )

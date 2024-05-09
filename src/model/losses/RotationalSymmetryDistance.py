@@ -26,6 +26,9 @@ class RotationalSymmetryDistance(nn.Module):
 
         distances = torch.zeros(m, device=axis_true.device)
 
+        angle_pred = angle_pred.reshape(m)
+        angle_true = angle_true.reshape(m)
+
         for idx in range(m):
             rotated_pred = rotate_shape(axis_pred[idx], center_pred[idx], angle_pred[idx].reshape(1), points)
             rotated_true = rotate_shape(axis_true[idx], center_true[idx], angle_true[idx].reshape(1), points)

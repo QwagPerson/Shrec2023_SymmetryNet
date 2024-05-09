@@ -24,14 +24,14 @@ class ReflectionSymmetryLoss(nn.Module):
 
     def forward(self, bundled_plane_predictions):
         batch, plane_predictions, plane_c_hats, matched_plane_pred, matched_plane_real = bundled_plane_predictions
-        idxs, points, planar_syms, axis_continue_syms, axis_discrete_syms, transforms = batch
 
-        batch_size = points.shape[0]
-        losses = torch.zeros(batch_size, device=points.device)
+        batch_size = batch.size
+        losses = torch.zeros(batch_size, device=batch.device)
 
         for b_idx in range(batch_size):
+            item = batch.item_list[b_idx]
 
-            curr_points = points[b_idx]
+            curr_points = item.points
 
             curr_y_true = matched_plane_real[b_idx]
             curr_y_pred = matched_plane_pred[b_idx]

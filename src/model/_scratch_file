@@ -2,7 +2,7 @@
 
 import lightning
 
-from src.dataset.SymmetryDataModule import default_symmetry_dataset_collate_fn_list_sym, SymmetryDataModule
+from src.dataset.SymDataModule import custom_collate_fn, SymDataModule
 from src.dataset.transforms.ComposeTransform import ComposeTransform
 from src.dataset.transforms.RandomSampler import RandomSampler
 from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
@@ -11,31 +11,31 @@ from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 if __name__ == "__main__":
 
     DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/"
-    BATCH_SIZE = 3
+    BATCH_SIZE = 2
     PREDICT_SAMPLES = 1
     SAMPLE_SIZE = 14_440
-    COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
+    COLLATE_FN = custom_collate_fn
     NUM_WORKERS = 15
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
     compose_transform = ComposeTransform([sampler, scaler])
 
-    datamodule = SymmetryDataModule(
+    datamodule = SymDataModule(
         dataset_path=DATA_PATH,
         predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
         batch_size=BATCH_SIZE,
         transform=compose_transform,
-        collate_function=default_symmetry_dataset_collate_fn_list_sym,
+        collate_function=custom_collate_fn,
         shuffle=True,
         n_workers=1,
     )
     datamodule.setup("predict")
     datamodule.setup("fit")
 
-    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=2,
-                                         amount_of_axis_discrete_normals_predicted=2,
+    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=0,
+                                         amount_of_axis_discrete_normals_predicted=0,
                                          amount_of_axis_continue_normals_predicted=2, )
 
     test_batch = next(iter(datamodule.train_dataloader()))
