@@ -6,11 +6,14 @@ import torch
 from src.metrics.MAP import get_mean_average_precision
 from src.metrics.PHC import get_phc
 from src.model.CenterNNormalsNet import CenterNNormalsNet
-from src.model.losses.AngleLoss import AngleLoss
+from src.model.losses.DiscreteRotationalSymmetryLoss import DiscreteRotationalSymmetryLoss
+from src.model.losses.NormalLoss import NormalLoss
 from src.model.losses.ConfidencesLoss import ConfidenceLoss
 from src.model.losses.DistanceLoss import DistanceLoss
 from src.model.losses.ReflectionSymmetryDistance import ReflectionSymmetryDistance
 from src.model.losses.ReflectionSymmetryLoss import ReflectionSymmetryLoss
+from src.model.losses.RotationalSymmetryDistance import RotationalSymmetryDistance
+from src.model.losses.RotationalSymmetryLoss import RotationalSymmetryLoss
 from src.model.losses.utils import reverse_transformation
 from src.model.matchers.SimpleMatcher import SimpleMatcher
 from src.model.matchers.cost_matrix_methods import calculate_cost_matrix_normals
@@ -24,8 +27,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  conf_weight: float = 1.0,
                  sym_dist_weight: float = 1.0,
                  dist_weight: float = 1.0,
+                 normal_weight: float = 1.0,
                  angle_weight: float = 1.0,
-
                  cost_matrix_method: Callable = calculate_cost_matrix_normals,
                  print_losses: bool = False,
                  use_bn: bool = False,
@@ -40,10 +43,28 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
         self.plane_loss = ReflectionSymmetryLoss(
             confidence_weight=conf_weight, confidence_loss=ConfidenceLoss(),
-            angle_weight=angle_weight, angle_loss=AngleLoss(),
+            normal_weight=normal_weight, normal_loss=NormalLoss(),
             distance_weight=dist_weight, distance_loss=DistanceLoss(),
             reflection_symmetry_distance_weight=sym_dist_weight,
             reflection_symmetry_distance=ReflectionSymmetryDistance()
+        )
+
+        self.discrete_rotational_loss = DiscreteRotationalSymmetryLoss(
+            confidence_weight=conf_weight, confidence_loss=ConfidenceLoss(),
+            normal_weight=normal_weight, normal_loss=NormalLoss(),
+            distance_weight=dist_weight, distance_loss=DistanceLoss(),
+            angle_weight=angle_weight, angle_loss=DistanceLoss(),
+            rotational_symmetry_distance_weight=sym_dist_weight,
+            rotational_symmetry_distance=RotationalSymmetryDistance()
+        )
+
+        self.continue_rotational_loss = RotationalSymmetryLoss(
+            confidence_weight=conf_weight, confidence_loss=ConfidenceLoss(),
+            normal_weight=normal_weight, normal_loss=NormalLoss(),
+            distance_weight=dist_weight, distance_loss=DistanceLoss(),
+            angle_weight=angle_weight, angle_loss=DistanceLoss(),
+            rotational_symmetry_distance_weight=sym_dist_weight,
+            rotational_symmetry_distance=RotationalSymmetryDistance()
         )
 
         self.net = CenterNNormalsNet(
@@ -71,18 +92,40 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                                                                                                        planar_syms)
 
         if axis_discrete_predictions is not None:
-            axis_discrete_c_hat, matched_axis_discrete_pred, matched_axis_discrete_true = self.matcher.get_optimal_assignment(
+            axis_discrete_c_hats, matched_axis_discrete_pred, matched_axis_discrete_true = self.matcher.get_optimal_assignment(
                 points, axis_discrete_predictions, axis_discrete_syms)
 
         if axis_continue_predictions is not None:
-            axis_continue_c_hat, matched_axis_continue_pred, matched_axis_continue_true = self.matcher.get_optimal_assignment(
+            axis_continue_c_hats, matched_axis_continue_pred, matched_axis_continue_true = self.matcher.get_optimal_assignment(
                 points, axis_continue_predictions, axis_continue_syms)
 
-        bundled_plane_predictions = (batch, plane_predictions, plane_c_hats, matched_plane_pred, matched_plane_true)
+        ##################
+        # Continue Axis
+        ##################
+        bundled_axis_continue_predictions = (
+            batch, axis_continue_predictions, axis_continue_c_hats, matched_axis_continue_pred, matched_axis_continue_true)
+        continue_axis_loss = self.continue_rotational_loss(bundled_axis_continue_predictions)
+
+        bundled_continue_axis_predictions = [(batch, axis_continue_predictions)]
+        map_continue_axis = get_mean_average_precision(bundled_continue_axis_predictions)
+        phc_continue_axis = get_phc(bundled_continue_axis_predictions)
+
+
+        ##################
+        # Discrete Axis
+        ##################
+        bundled_axis_discrete_predictions = (
+            batch, axis_discrete_predictions, axis_discrete_c_hats, matched_axis_discrete_pred, matched_axis_discrete_true)
+        discrete_axis_loss = self.discrete_rotational_loss(bundled_axis_discrete_predictions)
+
+        eval_axis_discrete_predictions = [(batch, axis_discrete_predictions)]
+        map_discrete_axis = get_mean_average_precision(eval_axis_discrete_predictions)
+        phc_discrete_axis = get_phc(eval_axis_discrete_predictions)
 
         ##################
         # Plane
         ##################
+        bundled_plane_predictions = (batch, plane_predictions, plane_c_hats, matched_plane_pred, matched_plane_true)
         plane_loss = self.plane_loss(bundled_plane_predictions)
 
         eval_plan_predictions = [(batch, plane_predictions)]
@@ -90,30 +133,16 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         phc_plane = get_phc(eval_plan_predictions)
 
         ##################
-        # Discrete Axis
-        ##################
-        discrete_axis_loss = calculate_discrete_axis_loss(
-            batch, axis_discrete_predictions,
-            self.cost_matrix_method, self.losses_weights,
-            self.print_losses
-        )
-
-        bundled_discrete_axis_predictions = [(batch, axis_discrete_predictions)]
-        map_discrete_axis = get_mean_average_precision(bundled_discrete_axis_predictions)
-        phc_discrete_axis = get_phc(bundled_discrete_axis_predictions)
-
-        ##################
         # Continue Axis
         ##################
-        continue_axis_loss = calculate_continue_axis_loss(
-            batch, axis_discrete_predictions,
-            self.cost_matrix_method, self.losses_weights,
-            self.print_losses
-        )
+        bundled_axis_continue_predictions = (
+            batch, axis_continue_predictions, axis_continue_c_hats, matched_axis_continue_pred, matched_axis_continue_true)
+        continue_axis_loss = self.continue_rotational_loss(bundled_axis_continue_predictions)
 
-        bundled_discrete_axis_predictions = [(batch, axis_discrete_predictions)]
-        map_continue_axis = get_mean_average_precision(bundled_discrete_axis_predictions)
-        phc_continue_axis = get_phc(bundled_discrete_axis_predictions)
+        bundled_continue_axis_predictions = [(batch, axis_continue_predictions)]
+        map_continue_axis = get_mean_average_precision(bundled_continue_axis_predictions)
+        phc_continue_axis = get_phc(bundled_continue_axis_predictions)
+
         ##################
         # Bundling loss
         ##################

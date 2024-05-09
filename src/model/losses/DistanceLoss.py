@@ -8,7 +8,7 @@ REDUCTIONS = {
 
 
 class DistanceLoss(nn.Module):
-    def __init__(self, p=1, reduction="mean"):
+    def __init__(self, p=2, reduction="mean"):
         super().__init__()
         self.p = p
         self.reduction = reduction

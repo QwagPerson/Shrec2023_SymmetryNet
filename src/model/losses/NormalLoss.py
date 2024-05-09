@@ -9,7 +9,7 @@ REDUCTIONS = {
 }
 
 
-class AngleLoss(nn.Module):
+class NormalLoss(nn.Module):
     def __init__(self, check_normalized=True, reduction="mean"):
         super().__init__()
         self.check_normalized = check_normalized
@@ -24,5 +24,4 @@ class AngleLoss(nn.Module):
             if not true_normalized:
                 warnings.warn("Got n_true with normals that are not normalized!")
 
-        print(n_true.shape, n_pred.shape)
         return REDUCTIONS[self.reduction](torch.abs(1 - torch.linalg.vecdot(n_true, n_pred)))

@@ -6,19 +6,19 @@ class ReflectionSymmetryLoss(nn.Module):
     def __init__(
             self,
             confidence_weight, confidence_loss,
-            angle_weight, angle_loss,
+            normal_weight, normal_loss,
             distance_weight, distance_loss,
             reflection_symmetry_distance_weight, reflection_symmetry_distance
     ):
         super().__init__()
 
         self.confidence_weight = confidence_weight
-        self.angle_weight = angle_weight
+        self.normal_weight = normal_weight
         self.distance_weight = distance_weight
         self.reflection_symmetry_distance_weight = reflection_symmetry_distance_weight
 
         self.confidence_loss = confidence_loss
-        self.angle_loss = angle_loss
+        self.normal_loss = normal_loss
         self.distance_loss = distance_loss
         self.reflection_symmetry_distance = reflection_symmetry_distance
 
@@ -50,7 +50,7 @@ class ReflectionSymmetryLoss(nn.Module):
             curr_normal_pred = curr_y_pred[:, 0:3]
             curr_center_pred = curr_y_pred[:, 3:6]
 
-            angle_loss = self.angle_weight * self.angle_loss(curr_normal_pred, curr_normal_true)
+            normal_loss = self.normal_weight * self.normal_loss(curr_normal_pred, curr_normal_true)
 
             distance_loss = self.distance_weight * self.distance_loss(curr_center_pred, curr_center_true)
 
@@ -64,7 +64,7 @@ class ReflectionSymmetryLoss(nn.Module):
 
             losses[b_idx] = (
                     conf_loss +
-                    angle_loss +
+                    normal_loss +
                     distance_loss +
                     reflection_symmetry_distance
             )
