@@ -99,5 +99,11 @@ class SymDatasetItem:
             str_rep += f"\t\tAxis Continue Syms: {self.axis_continue_symmetries.shape}\n"
         return str_rep
 
-
-
+    def to(self, device):
+        self.points = self.points.to(device)
+        self.plane_symmetries = self.plane_symmetries.to(device) if self.plane_symmetries is not None else None
+        self.axis_continue_symmetries = self.axis_continue_symmetries.to(
+            device) if self.axis_continue_symmetries is not None else None
+        self.axis_discrete_symmetries = self.axis_discrete_symmetries.to(
+            device) if self.axis_discrete_symmetries is not None else None
+        return self

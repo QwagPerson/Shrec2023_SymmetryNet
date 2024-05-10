@@ -34,7 +34,7 @@ class RotationalSymmetryLoss(nn.Module):
         loss_matrix = torch.zeros((batch_size, 4), device=batch.device)
 
         for b_idx in range(batch_size):
-            item = batch.item_list[b_idx]
+            item = batch.get_item(b_idx)
             curr_points = item.points
 
             curr_y_true = matched_real[b_idx]

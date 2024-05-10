@@ -10,7 +10,7 @@ def create_quat(axis, angle):
 
 
 def conjugate(quat):
-    return quat * torch.tensor([1, -1, -1, -1])
+    return quat * torch.tensor([1, -1, -1, -1], device=quat.device)
 
 
 def make_quat_points(points):

@@ -40,3 +40,6 @@ class SymDatasetBatcher:
 
     def get_shape_type_classification_labels(self):
         return torch.stack([item.get_shape_type_classification_label(self.device) for item in self.item_list])
+
+    def get_item(self, idx):
+        return self.item_list[idx].to(self.device)

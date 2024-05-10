@@ -111,10 +111,11 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         return optimizer
 
     def _log(
-            self, metric_val, metric_name, sym_tag, step_tag, batch_size, on_step=True, on_epoch=True, prog_bar=False,
+            self, metric_val, metric_name, sym_tag, step_tag, batch_size,
+            on_step=True, on_epoch=True, prog_bar=False, sync_dist=True
     ):
         self.log(f"{sym_tag}_{step_tag}_{metric_name}", metric_val, on_step=on_step, on_epoch=on_epoch,
-                 prog_bar=prog_bar, sync_dist=True, batch_size=batch_size)
+                 prog_bar=prog_bar, batch_size=batch_size, sync_dist=sync_dist)
 
     def _process_prediction(self, batch, sym_pred, sym_true, loss_fun, sym_tag, step_tag, losses_tags):
         c_hat, match_pred, match_true, pred2true, true2pred = self.matcher.get_optimal_assignment(batch.get_points(),
@@ -125,19 +126,20 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         eval_predictions = [(batch.get_points(), sym_pred, sym_true)]
         map = get_mean_average_precision(eval_predictions)
         phc = get_phc(eval_predictions)
-
+        """
         for i in range(batch.size):
             a_pred2true = pred2true[i]
             if a_pred2true is None:
                 continue
             else:
-                a_pred2true = torch.tensor(a_pred2true).float()
+                a_pred2true = torch.tensor(a_pred2true, device=self.device).float()
                 for j in range(len(a_pred2true)):
-                    self._log(a_pred2true[j], f"pred2true_batchmember_{i}_sym_{j}", sym_tag, step_tag, batch.size)
+                    self._log(a_pred2true[j], f"pred2true_batchmember_{i}_sym_{j}", sym_tag, step_tag, batch.size, sync_dist=False)
 
         for i in range(batch.size):
-            idx = torch.tensor(batch.item_list[i].idx).float()
-            self._log(idx, f"id_batch_member_{i}", sym_tag, step_tag, batch.size)
+            idx = torch.tensor(batch.item_list[i].idx, device=self.device).float()
+            self._log(idx, f"id_batch_member_{i}", sym_tag, step_tag, batch.size, sync_dist=False)
+        """
 
         for idx in range(others.shape[0]):
             self._log(others[idx], f"loss_{losses_tags[idx]}", sym_tag, step_tag, batch.size)
@@ -150,6 +152,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
     def _step(self, batch, step_tag):
         batch.device = self.device
+        self.matcher.device = self.device
         points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 
@@ -191,6 +194,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         batch.device = self.device
+        self.matcher.device = self.device
+
         points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 

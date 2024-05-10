@@ -37,7 +37,7 @@ class DiscreteRotationalSymmetryLoss(nn.Module):
         loss_matrix = torch.zeros((batch_size, 5), device=batch.device)
 
         for b_idx in range(batch_size):
-            item = batch.item_list[b_idx]
+            item = batch.get_item(b_idx)
 
             curr_points = item.points
 
