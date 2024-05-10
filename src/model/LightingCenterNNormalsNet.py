@@ -151,7 +151,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                     print(f"{[b_idx]} Y_true\n{curr_y_true}")
                     print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
                     #print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
-                    print(f"{[b_idx]} Loss: {others[b_idx].item()}")
+                    #print(f"{[b_idx]} Loss: {others[b_idx].item()}")
 
 
 
