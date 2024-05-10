@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Union
 
 import lightning
 import torch
@@ -23,11 +23,12 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  amount_of_plane_normals_predicted: int = 32,
                  amount_of_axis_discrete_normals_predicted: int = 16,
                  amount_of_axis_continue_normals_predicted: int = 16,
-                 conf_weight: float = 1.0,
-                 sym_dist_weight: float = 1.0,
-                 dist_weight: float = 1.0,
-                 normal_weight: float = 1.0,
-                 angle_weight: float = 1.0,
+                 plane_loss: Union[ReflectionSymmetryLoss, str] = "default",
+                 discrete_rotational_loss: Union[DiscreteRotationalSymmetryLoss, str] = "default",
+                 continue_rotational_loss: Union[RotationalSymmetryLoss, str] = "default",
+                 w1: float = 1.0,
+                 w2: float = 1.0,
+                 w3: float = 1.0,
                  cost_matrix_method: Callable = calculate_cost_matrix_normals,
                  print_losses: bool = False,
                  use_bn: bool = False,
@@ -39,14 +40,20 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.print_losses = print_losses
         self.cost_matrix_method = cost_matrix_method
         self.matcher = SimpleMatcher(self.cost_matrix_method)
+        self.w1 = w1
+        self.w2 = w2
+        self.w3 = w3
 
-        self.plane_loss = ReflectionSymmetryLoss(
-            confidence_weight=conf_weight, confidence_loss=ConfidenceLoss(),
-            normal_weight=normal_weight, normal_loss=NormalLoss(),
-            distance_weight=dist_weight, distance_loss=DistanceLoss(),
-            reflection_symmetry_distance_weight=sym_dist_weight,
-            reflection_symmetry_distance=ReflectionSymmetryDistance()
-        )
+        if plane_loss == "default":
+            self.plane_loss = ReflectionSymmetryLoss(
+                confidence_weight=1.0, confidence_loss=ConfidenceLoss(),
+                normal_weight=1.0, normal_loss=NormalLoss(),
+                distance_weight=1.0, distance_loss=DistanceLoss(),
+                reflection_symmetry_distance_weight=0.1,
+                reflection_symmetry_distance=ReflectionSymmetryDistance()
+            )
+        else:
+            self.plane_loss = plane_loss
         self.plane_loss_tag = [
             "confidence",
             "normal",
@@ -54,14 +61,18 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             "ref_sym_distance"
         ]
 
-        self.discrete_rotational_loss = DiscreteRotationalSymmetryLoss(
-            confidence_weight=conf_weight, confidence_loss=ConfidenceLoss(),
-            normal_weight=normal_weight, normal_loss=NormalLoss(),
-            distance_weight=dist_weight, distance_loss=DistanceLoss(),
-            angle_weight=angle_weight, angle_loss=DistanceLoss(),
-            rotational_symmetry_distance_weight=sym_dist_weight,
-            rotational_symmetry_distance=RotationalSymmetryDistance()
-        )
+        if discrete_rotational_loss == "default":
+            self.discrete_rotational_loss = DiscreteRotationalSymmetryLoss(
+                confidence_weight=1.0, confidence_loss=ConfidenceLoss(),
+                normal_weight=1.0, normal_loss=NormalLoss(),
+                distance_weight=1.0, distance_loss=DistanceLoss(),
+                angle_weight=1.0, angle_loss=DistanceLoss(),
+                rotational_symmetry_distance_weight=0.1,
+                rotational_symmetry_distance=RotationalSymmetryDistance()
+            )
+        else:
+            self.discrete_rotational_loss = discrete_rotational_loss
+
         self.discrete_rotational_loss_tag = [
             "confidence",
             "normal",
@@ -69,14 +80,16 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             "angle",
             "rot_sym_distance"
         ]
-
-        self.continue_rotational_loss = RotationalSymmetryLoss(
-            confidence_weight=conf_weight, confidence_loss=ConfidenceLoss(),
-            normal_weight=normal_weight, normal_loss=NormalLoss(),
-            distance_weight=dist_weight, distance_loss=DistanceLoss(),
-            rotational_symmetry_distance_weight=sym_dist_weight,
-            rotational_symmetry_distance=RotationalSymmetryDistance()
-        )
+        if continue_rotational_loss == "default":
+            self.continue_rotational_loss = RotationalSymmetryLoss(
+                confidence_weight=1.0, confidence_loss=ConfidenceLoss(),
+                normal_weight=1.0, normal_loss=NormalLoss(),
+                distance_weight=1.0, distance_loss=DistanceLoss(),
+                rotational_symmetry_distance_weight=0.1,
+                rotational_symmetry_distance=RotationalSymmetryDistance()
+            )
+        else:
+            self.continue_rotational_loss = continue_rotational_loss
         self.continue_rotational_loss_tag = [
             "confidence",
             "normal",
@@ -147,14 +160,14 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                 batch, plane_predictions, batch.get_plane_syms(), self.plane_loss,
                 "plane", step_tag, self.plane_loss_tag
             )
-            loss += plane_loss
+            loss += plane_loss * self.w1
 
         if axis_discrete_predictions is not None:
             discrete_axis_loss, map_discrete_axis, phc_discrete_axis = self._process_prediction(
                 batch, axis_discrete_predictions, batch.get_axis_discrete_syms(), self.discrete_rotational_loss,
                 "d_axis", step_tag, self.discrete_rotational_loss_tag
             )
-            loss += discrete_axis_loss
+            loss += discrete_axis_loss * self.w2
 
         if axis_continue_predictions is not None:
             continue_axis_loss, map_continue_axis, phc_continue_axis = self._process_prediction(
@@ -162,7 +175,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                 "c_axis", step_tag, self.continue_rotational_loss_tag
 
             )
-            loss += continue_axis_loss
+            loss += continue_axis_loss * self.w3
 
         return loss
 
