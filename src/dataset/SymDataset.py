@@ -34,6 +34,8 @@ class SymDataset(Dataset):
         self.transform = transform
         self.has_ground_truth = has_ground_truth
         self.debug = debug
+        self.old_dataset = True
+        self.moar_debug = False
 
         if self.debug:
             print(f'Searching xz-compressed point cloud files in {self.data_source_path}...')
@@ -43,31 +45,51 @@ class SymDataset(Dataset):
             print(
                 f'{self.data_source_path.name}: found {self.length} files:\n{self.filename_list[:5]}\n{self.filename_list[-5:]}\n')
 
+    def _parse_sym_file_old_dataset(self, f, line_amount):
+        planar_symmetries = []
+        for _ in range(line_amount):
+            line = f.readline().split(" ")
+            #print(f'{line = }')
+            line = [x.replace("\n", "") for x in line]
+            plane = [float(x) for x in line[0::]]
+            planar_symmetries.append(torch.tensor(plane))
+        return planar_symmetries
+
     def _parse_sym_file(self, filename):
         planar_symmetries = []
         axis_continue_symmetries = []
         axis_discrete_symmetries = []
 
+        print(f'Parsing filename: {Path(filename).name}\n')
+        torch.set_printoptions(linewidth=200)
+        torch.set_printoptions(precision=3)
+        torch.set_printoptions(sci_mode=False)
+
         with open(filename) as f:
             line_amount = int(f.readline())
-            for _ in range(line_amount):
-                line = f.readline().split(" ")
-                line = [x.replace("\n", "") for x in line]
-                if line[0] == "plane":
-                    plane = [float(x) for x in line[1::]]
-                    planar_symmetries.append(torch.tensor(plane))
-                elif line[0] == "axis" and line[-1] == "inf":
-                    plane = [float(x) for x in line[1:7]]
-                    axis_continue_symmetries.append(torch.tensor(plane))
-                else:
-                    plane = [float(x) for x in line[1::]]
-                    axis_discrete_symmetries.append(torch.tensor(plane))
+            if self.old_dataset:
+                planar_symmetries = self._parse_sym_file_old_dataset(f, line_amount)
+            else:
+                for _ in range(line_amount):
+                    line = f.readline().split(" ")
+                    #print(f'{line = }')
+                    line = [x.replace("\n", "") for x in line]
+                    if line[0] == "plane":
+                        plane = [float(x) for x in line[1::]]
+                        planar_symmetries.append(torch.tensor(plane))
+                    elif line[0] == "axis" and line[-1] == "inf":
+                        plane = [float(x) for x in line[1:7]]
+                        axis_continue_symmetries.append(torch.tensor(plane))
+                    else:
+                        plane = [float(x) for x in line[1::]]
+                        axis_discrete_symmetries.append(torch.tensor(plane))
 
         planar_symmetries = None if len(planar_symmetries) == 0 else torch.stack(planar_symmetries).float()
         axis_continue_symmetries = None if len(axis_continue_symmetries) == 0 else torch.stack(
             axis_continue_symmetries).float()
         axis_discrete_symmetries = None if len(axis_discrete_symmetries) == 0 else torch.stack(
             axis_discrete_symmetries).float()
+
         if self.debug:
             print(f'Parsed file at: {filename}')
             formatted_print = lambda probably_tensor, text: print(f'\t No {text} found.') if probably_tensor is None \
@@ -75,6 +97,22 @@ class SymDataset(Dataset):
             formatted_print(planar_symmetries, "Plane symmetries")
             formatted_print(axis_discrete_symmetries, "Discrete axis symmetries")
             formatted_print(axis_continue_symmetries, "Continue axis symmetries")
+
+        if self.moar_debug:
+            print(f'{planar_symmetries.shape = }')
+            print(f'{planar_symmetries = }')
+            if axis_discrete_symmetries is not None:
+                print(f'{axis_discrete_symmetries.shape = }')
+                print(f'{axis_discrete_symmetries = }')
+            if axis_continue_symmetries is not None:
+                print(f'{axis_continue_symmetries.shape = }')
+                print(f'{axis_continue_symmetries = }')
+        '''
+        print(f'{axis_discrete_symmetries.shape = }')
+        print(f'{axis_discrete_symmetries = }')
+        print(f'{axis_continue_symmetries.shape = }')
+        print(f'{axis_continue_symmetries = }')
+        '''
 
         return planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
 

@@ -82,4 +82,18 @@ class DiscreteRotationalSymmetryLoss(nn.Module):
             loss_matrix[b_idx, 4] = angle_loss
 
         loss = torch.sum(loss_matrix) / batch_size
+
+        if True:
+            total_loss = loss
+            torch.set_printoptions  (linewidth=200)
+            torch.set_printoptions  (precision=3)
+            torch.set_printoptions  (sci_mode=False)
+            print(f"\n")
+            print(f"DROT conf_loss    : {(conf_loss / total_loss).item():.2f} | {conf_loss.item()}")
+            print(f"DROT sde_loss     : {(rotational_symmetry_distance / total_loss).item():.2f} | {rotational_symmetry_distance.item()}")
+            print(f"DROT normal_loss  : {(normal_loss / total_loss).item():.2f} | {normal_loss.item()}")
+            print(f"DROT distance_loss: {(distance_loss / total_loss).item():.2f} | {distance_loss.item()}")
+            print(f"DROT Total_loss   : {total_loss.item():.2f}")
+            print(f"\n")
+
         return loss, loss_matrix.sum(dim=0)

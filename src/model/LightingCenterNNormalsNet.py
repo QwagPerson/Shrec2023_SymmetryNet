@@ -102,7 +102,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             amount_of_axis_discrete_normals_predicted,
             amount_of_axis_continue_normals_predicted,
             use_bn=self.use_bn,
-            normalize_normals=self.normalize_normals
+            normalize_normals=self.normalize_normals,
+            print_losses=self.print_losses,
         )
         self.save_hyperparameters(ignore=["net", "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"])
 
@@ -126,6 +127,34 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         eval_predictions = [(batch.get_points(), sym_pred, sym_true)]
         map = get_mean_average_precision(eval_predictions)
         phc = get_phc(eval_predictions)
+
+        if self.print_losses or True:
+            torch.set_printoptions  (linewidth=200)
+            torch.set_printoptions  (precision=3)
+            torch.set_printoptions  (sci_mode=False)
+            print(f"Points shape {batch.get_points()[0].shape}")
+            print(f"Y_true shape {len(sym_true)} - {sym_true[0].shape = }")
+            print(f"Y_pred shape {len(sym_pred)} - {sym_pred[0].shape = }")
+
+            print(f"Y_true:\n{sym_true[0]}\n")
+            print(f"Y_pred:\n{sym_pred[0]}\n")
+            print(f"Loss  : {loss}\n")
+            print(f"Others: {others}\n")
+
+            if batch.size > 1:
+                for b_idx in range(batch.size):
+                    y_true = sym_true[b_idx]
+                    y_pred = sym_pred[b_idx]
+                    curr_y_true = y_true
+                    curr_y_pred = y_pred
+    
+                    print(f"{[b_idx]} Y_true\n{curr_y_true}")
+                    print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
+                    #print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
+                    print(f"{[b_idx]} Loss: {others[b_idx].item()}")
+
+
+
         """
         for i in range(batch.size):
             a_pred2true = pred2true[i]

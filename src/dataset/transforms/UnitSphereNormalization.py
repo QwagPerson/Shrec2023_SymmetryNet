@@ -24,6 +24,11 @@ class UnitSphereNormalization(AbstractTransform):
 
     def _normalize_planes(self, symmetries: torch.Tensor) -> torch.Tensor:
         self._validate_self_attributes_are_not_none()
+        if False:
+            print(f'{self.centroid = }')
+            print(f'{self.farthest_distance = }')
+            print(f'{symmetries = }')
+            print(f'{symmetries[:, 3:6] = }')
         symmetries[:, 3:6] = (symmetries[:, 3:6] - self.centroid) / self.farthest_distance
         return symmetries
 

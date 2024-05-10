@@ -14,6 +14,7 @@ class CenterNNormalsNet(nn.Module):
             amount_of_axis_continue_normals_predicted=10,
             use_bn=False,
             normalize_normals=False,
+            print_losses=False,
     ):
         super().__init__()
         self.use_bn = use_bn
@@ -21,6 +22,7 @@ class CenterNNormalsNet(nn.Module):
         self.amount_plane_normals = amount_of_plane_normals_predicted
         self.amount_axis_discrete_normals = amount_of_axis_discrete_normals_predicted
         self.amount_axis_continue_normals = amount_of_axis_continue_normals_predicted
+        self.print_losses = print_losses
 
         self.encoder = PointNetEncoder(use_bn=self.use_bn)
 
