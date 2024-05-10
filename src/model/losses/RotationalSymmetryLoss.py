@@ -50,11 +50,11 @@ class RotationalSymmetryLoss(nn.Module):
 
             curr_normal_true = curr_y_true[:, 0:3]
             curr_center_true = curr_y_true[:, 3:6]
-            curr_angle_true = torch.tensor(1.5707)
+            curr_angle_true = torch.tensor(1.5707, device=curr_center_true.device)
 
             curr_normal_pred = curr_y_pred[:, 0:3]
             curr_center_pred = curr_y_pred[:, 3:6]
-            curr_angle_pred = torch.tensor(1.5707)
+            curr_angle_pred = torch.tensor(1.5707, device=curr_center_pred.device)
 
             normal_loss = self.normal_weight * self.normal_loss(curr_normal_pred, curr_normal_true)
 
