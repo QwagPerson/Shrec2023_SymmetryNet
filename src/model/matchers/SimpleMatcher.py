@@ -16,8 +16,9 @@ def create_onehot(row_idx, length, device="cpu"):
 
 
 class SimpleMatcher:
-    def __init__(self, method):
+    def __init__(self, method, device):
         self.method = method
+        self.device = device
 
 
 
@@ -32,7 +33,7 @@ class SimpleMatcher:
         m = y_pred.shape[0]
         cost_matrix = self.method(points, y_pred.detach().clone(), y_true)
         row_id, col_id = linear_sum_assignment(cost_matrix.cpu().detach().numpy())
-        c_hat = create_onehot(row_id, m, device=points.device)
+        c_hat = create_onehot(row_id, m, device=self.device)
         y_pred = y_pred[row_id, :]
         y_true = y_true[col_id, :]
         return c_hat, y_pred, y_true, row_id, col_id
@@ -55,7 +56,7 @@ class SimpleMatcher:
 
         for idx in range(batch_size):
             if y_true[idx] is None:
-                c_hats.append(torch.zeros(head_amount))
+                c_hats.append(torch.zeros(head_amount, device=self.device))
                 matches_y_pred.append(None)
                 matches_y_true.append(None)
                 assignments_y_pred_2_y_true.append(None)

@@ -17,8 +17,10 @@ class NormalLoss(nn.Module):
 
     def forward(self, n_pred, n_true):
         if self.check_normalized:
-            pred_normalized = torch.allclose(torch.norm(n_pred, dim=1), torch.ones((n_pred.shape[0])))
-            true_normalized = torch.allclose(torch.norm(n_true, dim=1), torch.ones((n_true.shape[0])))
+            pred_normalized = torch.allclose(torch.norm(n_pred, dim=1),
+                                             torch.ones((n_pred.shape[0]), device=n_pred.device))
+            true_normalized = torch.allclose(torch.norm(n_true, dim=1),
+                                             torch.ones((n_true.shape[0]), device=n_true.device))
             if not pred_normalized:
                 warnings.warn("Got n_pred with normals that are not normalized!")
             if not true_normalized:

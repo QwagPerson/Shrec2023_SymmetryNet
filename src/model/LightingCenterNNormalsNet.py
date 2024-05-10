@@ -39,7 +39,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.normalize_normals = normalize_normals
         self.print_losses = print_losses
         self.cost_matrix_method = cost_matrix_method
-        self.matcher = SimpleMatcher(self.cost_matrix_method)
+        self.matcher = SimpleMatcher(self.cost_matrix_method, self.device)
         self.w1 = w1
         self.w2 = w2
         self.w3 = w3
@@ -149,6 +149,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         return loss, map, phc
 
     def _step(self, batch, step_tag):
+        batch.device = self.device
         points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 
@@ -189,6 +190,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         return self._step(batch, "test")
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        batch.device = self.device
         points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 

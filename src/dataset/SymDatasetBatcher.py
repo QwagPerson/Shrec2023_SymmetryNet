@@ -15,16 +15,28 @@ class SymDatasetBatcher:
         return [item.filename for item in self.item_list]
 
     def get_points(self):
-        return [item.points for item in self.item_list]
+        return [item.points.to(self.device) for item in self.item_list]
 
     def get_plane_syms(self):
-        return [item.plane_symmetries for item in self.item_list]
+        plane_syms = [item.plane_symmetries for item in self.item_list]
+        for i in range(len(plane_syms)):
+            if plane_syms[i] is not None:
+                plane_syms[i] = plane_syms[i].to(self.device)
+        return plane_syms
 
     def get_axis_continue_syms(self):
-        return [item.axis_continue_symmetries for item in self.item_list]
+        axis_continue_syms = [item.axis_continue_symmetries for item in self.item_list]
+        for i in range(len(axis_continue_syms)):
+            if axis_continue_syms[i] is not None:
+                axis_continue_syms[i] = axis_continue_syms[i].to(self.device)
+        return axis_continue_syms
 
     def get_axis_discrete_syms(self):
-        return [item.axis_discrete_symmetries for item in self.item_list]
+        axis_discrete_symmetries = [item.axis_discrete_symmetries for item in self.item_list]
+        for i in range(len(axis_discrete_symmetries)):
+            if axis_discrete_symmetries[i] is not None:
+                axis_discrete_symmetries[i] = axis_discrete_symmetries[i].to(self.device)
+        return axis_discrete_symmetries
 
-    def get_shape_type_classification_labels(self, device="cpu"):
-        return torch.stack([item.get_shape_type_classification_label(device) for item in self.item_list])
+    def get_shape_type_classification_labels(self):
+        return torch.stack([item.get_shape_type_classification_label(self.device) for item in self.item_list])
