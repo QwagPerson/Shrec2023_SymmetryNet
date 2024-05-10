@@ -1,14 +1,19 @@
 import torch
 from torch import nn
 
+from src.model.losses.ConfidenceLoss import ConfidenceLoss
+from src.model.losses.DistanceLoss import DistanceLoss
+from src.model.losses.NormalLoss import NormalLoss
+from src.model.losses.ReflectionSymmetryDistance import ReflectionSymmetryDistance
+
 
 class ReflectionSymmetryLoss(nn.Module):
     def __init__(
             self,
-            confidence_weight, confidence_loss,
-            normal_weight, normal_loss,
-            distance_weight, distance_loss,
-            reflection_symmetry_distance_weight, reflection_symmetry_distance
+            confidence_weight: float, confidence_loss: ConfidenceLoss,
+            normal_weight: float, normal_loss: NormalLoss,
+            distance_weight: float, distance_loss: DistanceLoss,
+            reflection_symmetry_distance_weight: float, reflection_symmetry_distance: ReflectionSymmetryDistance
     ):
         super().__init__()
 

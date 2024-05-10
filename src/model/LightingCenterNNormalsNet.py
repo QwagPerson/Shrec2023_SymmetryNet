@@ -8,7 +8,7 @@ from src.metrics.PHC import get_phc
 from src.model.CenterNNormalsNet import CenterNNormalsNet
 from src.model.losses.DiscreteRotationalSymmetryLoss import DiscreteRotationalSymmetryLoss
 from src.model.losses.NormalLoss import NormalLoss
-from src.model.losses.ConfidencesLoss import ConfidenceLoss
+from src.model.losses.ConfidenceLoss import ConfidenceLoss
 from src.model.losses.DistanceLoss import DistanceLoss
 from src.model.losses.ReflectionSymmetryDistance import ReflectionSymmetryDistance
 from src.model.losses.ReflectionSymmetryLoss import ReflectionSymmetryLoss
@@ -104,7 +104,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             use_bn=self.use_bn,
             normalize_normals=self.normalize_normals
         )
-        self.save_hyperparameters(ignore=["net"])
+        self.save_hyperparameters(ignore=["net", "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"])
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())
