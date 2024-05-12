@@ -3,13 +3,14 @@ from torch import nn
 
 
 class PredictionHead(nn.Module):
-    def __init__(self, output_size, use_bn=False):
+    def __init__(self, input_size, output_size, use_bn=False):
         super().__init__()
         self.use_bn = use_bn
+        self.input_size = input_size
         self.output_size = output_size
         if use_bn:
             self.decoder_head = torch.nn.Sequential(
-                nn.Linear(1024, 512),
+                nn.Linear(input_size, 512),
                 nn.BatchNorm1d(512),
                 nn.LeakyReLU(),
                 nn.Linear(512, 256),
@@ -19,7 +20,7 @@ class PredictionHead(nn.Module):
             )
         else:
             self.decoder_head = torch.nn.Sequential(
-                nn.Linear(1024, 512),
+                nn.Linear(input_size, 512),
                 nn.LeakyReLU(),
                 nn.Linear(512, 256),
                 nn.LeakyReLU(),

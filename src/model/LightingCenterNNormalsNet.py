@@ -32,10 +32,12 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  cost_matrix_method: Callable = calculate_cost_matrix_normals,
                  print_losses: bool = False,
                  use_bn: bool = False,
-                 normalize_normals: bool = True
+                 normalize_normals: bool = True,
+                 encoder: str = "pointnet",
                  ):
         super().__init__()
         self.use_bn = use_bn
+        self.encoder_used = encoder
         self.normalize_normals = normalize_normals
         self.print_losses = print_losses
         self.cost_matrix_method = cost_matrix_method
@@ -102,7 +104,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             amount_of_axis_discrete_normals_predicted,
             amount_of_axis_continue_normals_predicted,
             use_bn=self.use_bn,
-            normalize_normals=self.normalize_normals
+            normalize_normals=self.normalize_normals,
+            encoder=encoder
         )
         self.save_hyperparameters(ignore=["net", "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"])
 

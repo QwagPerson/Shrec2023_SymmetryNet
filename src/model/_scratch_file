@@ -19,7 +19,8 @@ if __name__ == "__main__":
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
-    compose_transform = ComposeTransform([sampler, scaler])
+    #compose_transform = ComposeTransform([sampler, scaler])
+    compose_transform = ComposeTransform([scaler])
 
     datamodule = SymDataModule(
         dataset_path=DATA_PATH,
@@ -35,9 +36,10 @@ if __name__ == "__main__":
     datamodule.setup("fit")
     print(len(datamodule.train_dataloader()))
 
-    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=10,
+    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=1,
                                          amount_of_axis_discrete_normals_predicted=0,
-                                         amount_of_axis_continue_normals_predicted=0, )
+                                         amount_of_axis_continue_normals_predicted=0,
+                                         encoder="PCT")
 
     test_batch = next(iter(datamodule.train_dataloader()))
 

@@ -56,7 +56,7 @@ class TNet(nn.Module):
 
 
 class PointNetEncoder(nn.Module):
-    def __init__(self, use_bn):
+    def __init__(self, use_bn, random_input_dropout_p=0.):
         super(PointNetEncoder, self).__init__()
 
         self.use_bn = use_bn
@@ -93,8 +93,6 @@ class PointNetEncoder(nn.Module):
                 nn.LeakyReLU(),
                 nn.Conv1d(256, 1024, 1),
             )
-
-
 
     def forward(self, x):
         """

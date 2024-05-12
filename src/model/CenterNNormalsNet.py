@@ -3,6 +3,8 @@ from torch import nn
 
 from src.model.decoders.center_prediction_head import CenterPredictionHead
 from src.model.decoders.prediction_head import PredictionHead
+from src.model.encoders.PCT import PCT
+from src.model.encoders.PointNetPlusPlusEncoder import PointNetPlusPlusEncoder
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 
 
@@ -14,6 +16,7 @@ class CenterNNormalsNet(nn.Module):
             amount_of_axis_continue_normals_predicted=10,
             use_bn=False,
             normalize_normals=False,
+            encoder: str = "pointnet",
     ):
         super().__init__()
         self.use_bn = use_bn
@@ -22,28 +25,37 @@ class CenterNNormalsNet(nn.Module):
         self.amount_axis_discrete_normals = amount_of_axis_discrete_normals_predicted
         self.amount_axis_continue_normals = amount_of_axis_continue_normals_predicted
 
-        self.encoder = PointNetEncoder(use_bn=self.use_bn)
+        if encoder == "pointnet":
+            self.encoder = PointNetEncoder(use_bn=self.use_bn)
+            self.encoder_output_size = 1024
+        elif encoder == "pointnetplusplus":
+            self.encoder = PointNetPlusPlusEncoder()
+            self.encoder_output_size = 1024
+        elif encoder == "PCT":
+            self.encoder = PCT()
+            self.encoder_output_size = 1024
+        else:
+            raise ValueError("Encoder no soportado")
 
         # nx ny nz & confidence
         self.plane_normals_heads = nn.ModuleList(
-            [PredictionHead(output_size=4, use_bn=self.use_bn) for _ in range(self.amount_plane_normals)]
+            [PredictionHead(input_size=self.encoder_output_size, output_size=4, use_bn=self.use_bn) for _ in range(self.amount_plane_normals)]
         )
 
         # nx ny nz theta & confidence
         self.axis_discrete_normals_heads = nn.ModuleList(
-            [PredictionHead(output_size=5, use_bn=self.use_bn) for _ in range(self.amount_axis_discrete_normals)]
+            [PredictionHead(input_size=self.encoder_output_size, output_size=5, use_bn=self.use_bn) for _ in range(self.amount_axis_discrete_normals)]
         )
 
         # nx ny nz & confidence
         self.axis_continue_normals_heads = nn.ModuleList(
-            [PredictionHead(output_size=4, use_bn=self.use_bn) for _ in range(self.amount_axis_continue_normals)]
+            [PredictionHead(input_size=self.encoder_output_size, output_size=4, use_bn=self.use_bn) for _ in range(self.amount_axis_continue_normals)]
         )
 
-        self.center_prediction_head = CenterPredictionHead(use_bn=self.use_bn)
+        self.center_prediction_head = CenterPredictionHead(input_size=self.encoder_output_size, use_bn=self.use_bn)
 
     def _forward_plane_normals(self, batch_size, pcd_features, center):
         plane_normals_list = []
-
         for head in self.plane_normals_heads:
             plane_normals_list.append(head(pcd_features))
 
