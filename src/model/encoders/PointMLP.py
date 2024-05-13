@@ -328,18 +328,23 @@ class Model(nn.Module):
         return x
 
 
-def PointMLPEncoder(n_points: int = 8192) -> Model:
+def PointMLPEncoderXL(n_points: int = 8192) -> Model:
     return Model(points=n_points, class_num=1, embed_dim=128, groups=1, res_expansion=1,
                  activation="relu", bias=False, use_xyz=True, normalize="anchor",
                  dim_expansion=[2, 2, 2, 1], pre_blocks=[3, 3, 3, 3], pos_blocks=[3, 3, 3, 3],
                  k_neighbors=[32, 32, 32, 32], reducers=[2, 2, 2, 2])
 
+def PointMLPEncoder(n_points: int = 8192) -> Model:
+    return Model(points=n_points, class_num=1, embed_dim=128, groups=1, res_expansion=1,
+                 activation="relu", bias=False, use_xyz=True, normalize="anchor",
+                 dim_expansion=[2, 2, 2, 1], pre_blocks=[1, 1, 1, 1], pos_blocks=[1, 1, 1, 1],
+                 k_neighbors=[32, 32, 32, 32], reducers=[2, 2, 2, 2])
 
 if __name__ == '__main__':
     n_points_2 = 8192 # Lazy name var
     data = torch.rand(2, 3, 8192)
     print("===> testing pointMLP ...")
-    model = PointMLPEncoder(n_points_2)
+    model = PointMLPEncoder(n_points_2) # PointMLPEncoderXL
     out = model(data)
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
