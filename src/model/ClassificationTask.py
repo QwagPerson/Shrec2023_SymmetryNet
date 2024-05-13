@@ -6,10 +6,6 @@ from src.dataset.SymDataModule import custom_collate_fn, SymDataModule
 from src.dataset.transforms.ComposeTransform import ComposeTransform
 from src.dataset.transforms.RandomSampler import RandomSampler
 from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
-from src.metrics.MAP import get_mean_average_precision
-from src.metrics.PHC import get_phc
-from src.model.CenterNNormalsNet import CenterNNormalsNet
-from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 from src.model.encoders.PCT import PCT
 from src.model.encoders.PointNetPlusPlusEncoder import PointNetPlusPlusEncoder
 from src.model.encoders.pointnet_encoder import PointNetEncoder
@@ -32,7 +28,7 @@ class ClassificationModel(nn.Module):
         else:
             raise ValueError("Encoder not found")
 
-        self.fc1 = nn.Linear(1024, 512)
+        self.fc1 = nn.Linear(self.encoder_output_size, 512)
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, self.n_classes)
 

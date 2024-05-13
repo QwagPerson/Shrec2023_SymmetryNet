@@ -14,7 +14,7 @@ SHAPE_TYPE = {
     "geometric_petal": 4,
     "lemniscate": 5,
     "m_convexities": 6,
-    "mouth_curves": 7,
+    "mouth_curve": 7,
     "revolution": 8,
     "square": 9,
 }
