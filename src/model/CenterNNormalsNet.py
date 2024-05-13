@@ -4,6 +4,7 @@ from torch import nn
 from src.model.decoders.center_prediction_head import CenterPredictionHead
 from src.model.decoders.prediction_head import PredictionHead
 from src.model.encoders.PCT import PCT
+from src.model.encoders.PointMLP import PointMLPEncoder
 from src.model.encoders.PointNetPlusPlusEncoder import PointNetPlusPlusEncoder
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 
@@ -17,9 +18,11 @@ class CenterNNormalsNet(nn.Module):
             use_bn=False,
             normalize_normals=False,
             encoder: str = "pointnet",
+            n_points: int = 8192,
     ):
         super().__init__()
         self.use_bn = use_bn
+        self.n_points = n_points
         self.normalize_normals = normalize_normals
         self.amount_plane_normals = amount_of_plane_normals_predicted
         self.amount_axis_discrete_normals = amount_of_axis_discrete_normals_predicted
@@ -33,6 +36,9 @@ class CenterNNormalsNet(nn.Module):
             self.encoder_output_size = 1024
         elif encoder == "PCT":
             self.encoder = PCT()
+            self.encoder_output_size = 1024
+        elif encoder == "PointMLP":
+            self.encoder = PointMLPEncoder(self.n_points)
             self.encoder_output_size = 1024
         else:
             raise ValueError("Encoder no soportado")

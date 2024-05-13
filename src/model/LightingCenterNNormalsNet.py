@@ -79,8 +79,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             "confidence",
             "normal",
             "distance",
-            "angle",
             "rot_sym_distance"
+            "angle",
         ]
         if continue_rotational_loss == "default":
             self.continue_rotational_loss = RotationalSymmetryLoss(

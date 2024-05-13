@@ -7,14 +7,16 @@ from src.dataset.transforms.ComposeTransform import ComposeTransform
 from src.dataset.transforms.RandomSampler import RandomSampler
 from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
 from src.model.encoders.PCT import PCT
+from src.model.encoders.PointMLP import PointMLPEncoder
 from src.model.encoders.PointNetPlusPlusEncoder import PointNetPlusPlusEncoder
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 
 
 class ClassificationModel(nn.Module):
-    def __init__(self, encoder: str = "pointnet", n_classes: int = 10):
+    def __init__(self, encoder: str = "pointnet", n_classes: int = 10, n_points: int = 10):
         super().__init__()
         self.n_classes = n_classes
+        self.n_points = n_points
 
         if encoder == "pointnet":
             self.encoder = PointNetEncoder()
@@ -24,6 +26,9 @@ class ClassificationModel(nn.Module):
             self.encoder_output_size = 1024
         elif encoder == "PCT":
             self.encoder = PCT()
+            self.encoder_output_size = 1024
+        elif encoder == "PointMLP":
+            self.encoder = PointMLPEncoder(self.n_points)
             self.encoder_output_size = 1024
         else:
             raise ValueError("Encoder not found")
@@ -44,12 +49,14 @@ class ClassificationModel(nn.Module):
 
 
 class ClassificationTask(lightning.LightningModule):
-    def __init__(self, encoder: str = "pointnet"):
+    def __init__(self, encoder: str = "pointnet", n_points: int = 8192, n_classes: int = 10):
         super().__init__()
         self.encoder_used = encoder
-
-        self.net = ClassificationModel(encoder=encoder)
+        self.n_points = n_points
+        self.n_classes = n_classes
         self.loss_fun = nn.CrossEntropyLoss()
+
+        self.net = ClassificationModel(encoder=encoder, n_points=n_points, n_classes=n_classes)
         self.save_hyperparameters(ignore=["net"])
 
     def configure_optimizers(self):
@@ -116,7 +123,7 @@ if __name__ == "__main__":
     DATA_PATH = "/data/temp"  # "/data/sym-10k-xz-split-class-noparallel/"
     BATCH_SIZE = 2
     PREDICT_SAMPLES = 1
-    SAMPLE_SIZE = 14_440
+    SAMPLE_SIZE = 8_192
     COLLATE_FN = custom_collate_fn
     NUM_WORKERS = 15
 
@@ -139,7 +146,7 @@ if __name__ == "__main__":
     datamodule.setup("fit")
     print(len(datamodule.train_dataloader()))
 
-    test_net = ClassificationTask(encoder="pointnet")
+    test_net = ClassificationTask(encoder="PointMLP", n_points=SAMPLE_SIZE, n_classes=10)
 
     test_batch = next(iter(datamodule.train_dataloader()))
 
