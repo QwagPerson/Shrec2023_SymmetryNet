@@ -34,9 +34,11 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  use_bn: bool = False,
                  normalize_normals: bool = True,
                  encoder: str = "pointnet",
+                 n_points: int = 8192
                  ):
         super().__init__()
         self.use_bn = use_bn
+        self.n_points = n_points
         self.encoder_used = encoder
         self.normalize_normals = normalize_normals
         self.print_losses = print_losses
@@ -105,7 +107,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             amount_of_axis_continue_normals_predicted,
             use_bn=self.use_bn,
             normalize_normals=self.normalize_normals,
-            encoder=encoder
+            encoder=encoder,
+            n_points=self.n_points
         )
         self.save_hyperparameters(ignore=["net", "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"])
 
