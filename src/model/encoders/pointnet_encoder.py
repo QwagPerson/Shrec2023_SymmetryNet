@@ -56,7 +56,7 @@ class TNet(nn.Module):
 
 
 class PointNetEncoder(nn.Module):
-    def __init__(self, use_bn, random_input_dropout_p=0.):
+    def __init__(self, use_bn = False):
         super(PointNetEncoder, self).__init__()
 
         self.use_bn = use_bn
