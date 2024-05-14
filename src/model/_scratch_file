@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
+import random
 
 import lightning
+import torch
+from torch.utils.data import Subset, DataLoader
 
 from src.dataset.SymDataModule import custom_collate_fn, SymDataModule
 from src.dataset.transforms.ComposeTransform import ComposeTransform
 from src.dataset.transforms.RandomSampler import RandomSampler
 from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
+from src.metrics.MAP import get_match_sequence, get_mean_average_precision
+from src.metrics.PHC import get_phc
 from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 
 if __name__ == "__main__":
 
-    DATA_PATH = "/data/temp"#"/data/sym-10k-xz-split-class-noparallel/"
+    DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/" # "/data/temp"#
+    MODEL_PATH = "/home/gustavo_santelices/Documents/Universidad/2024-1/simetrias/models/center_n_normals_3_many_heads_good_encoder/version_0/checkpoints/epoch=54_plane_train_map_epoch=0.286_d_axis_train_loss_epoch=0.791_c_axis_train_loss_epoch=0.100.ckpt"
     BATCH_SIZE = 2
-    PREDICT_SAMPLES = 1
+    PREDICT_SAMPLES = 10
     SAMPLE_SIZE = 14_440
     COLLATE_FN = custom_collate_fn
     NUM_WORKERS = 15
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
-    #compose_transform = ComposeTransform([sampler, scaler])
-    compose_transform = ComposeTransform([scaler])
+    compose_transform = ComposeTransform([sampler, scaler])
+    #compose_transform = ComposeTransform([scaler])
 
     datamodule = SymDataModule(
         dataset_path=DATA_PATH,
@@ -34,29 +40,21 @@ if __name__ == "__main__":
     )
     datamodule.setup("predict")
     datamodule.setup("fit")
-    print(len(datamodule.train_dataloader()))
 
-    test_net = LightingCenterNNormalsNet(amount_of_plane_normals_predicted=1,
-                                         amount_of_axis_discrete_normals_predicted=0,
-                                         amount_of_axis_continue_normals_predicted=0,
-                                         encoder="PCT")
+    test_net = LightingCenterNNormalsNet.load_from_checkpoint(MODEL_PATH)
 
     test_batch = next(iter(datamodule.train_dataloader()))
 
-    test_net.training_step(batch=test_batch, batch_idx=0, dataloader_idx=0)
-
     trainer = lightning.Trainer(enable_progress_bar=True, logger=False)
-    trainer.fit(test_net, datamodule)
+    #trainer.fit(test_net, datamodule)
 
-    """
     print(f'Training dataset has: {len(datamodule.train_dataset) = } batches')
     train_dataloader = datamodule.train_dataloader()
     print(f'Train dataloader has: {len(train_dataloader) = } batches')
     val_dataloader = datamodule.val_dataloader()
     print(f'Valid dataloader has: {len(val_dataloader) = } batches')
 
-    print(f'Predict dataset has: {len(datamodule.predict_dataset) = } batches')
-    predict_dataset = Subset(datamodule.predict_dataset, [i for i in range(1, PREDICT_SAMPLES)])
+    predict_dataset = Subset(datamodule.train_dataset, [i for i in range(PREDICT_SAMPLES)])
     print(f'Predict dataset has: {len(predict_dataset) = } batches')
     predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
                                     collate_fn=COLLATE_FN, num_workers=NUM_WORKERS)
@@ -67,24 +65,26 @@ if __name__ == "__main__":
     print(f'Predictions: {len(predictions)}')
     pr_idx = random.randint(0, len(predictions) - 1)
     print(f'Taking batch no. {pr_idx}')
-    batch, y_pred = predictions[pr_idx]
-    _, points, y_true, _ = batch
+    batch, plane_predictions, axis_discrete_predictions, axis_continue_predictions = predictions[pr_idx]
 
     torch.set_printoptions(linewidth=200)
     torch.set_printoptions(precision=3)
     torch.set_printoptions(sci_mode=False)
 
-    print(f"Batch size: {len(y_true)}")
-    idx = random.randint(0, len(y_true) - 1)
+    print(f"Batch size: {batch.size}")
+    idx = random.randint(0, batch.size - 1)
+    item = batch.item_list[idx]
     print(f"Comparing element: {idx} in batch...")
-    gt = y_true[idx]
-    pr = y_pred[idx][y_pred[idx][:, -1].sort(descending=True).indices]
-    match_sequence = get_match_sequence(pr, gt, points[idx], eps=0.01, theta=0.0174533)
+    gt = item.plane_symmetries
+    pr = plane_predictions[idx][plane_predictions[idx][:, -1].sort(descending=True).indices]
+
+    match_sequence = get_match_sequence(pr, gt, item.points, eps=0.01, theta=0.0174533)
 
     print(f'Ground truth:\n{gt}')
     print(f'Prediction  :\n{pr}')
     print(f'Match Sequence: \n{match_sequence}')
 
+    predictions = [(item.points.unsqueeze(0), y_pred.unsqueeze(0), item.plane_symmetries.unsqueeze(0)) for item, y_pred in zip(batch.item_list, plane_predictions)]
     print("Normal metrics")
     print("PHC", get_phc(predictions).item())
     print("MAP", get_mean_average_precision(predictions).item())
@@ -96,4 +96,3 @@ if __name__ == "__main__":
     print("Center matching")
     print("PHC", get_phc(predictions, theta=10).item())
     print("MAP", get_mean_average_precision(predictions, theta=10).item())
-    """

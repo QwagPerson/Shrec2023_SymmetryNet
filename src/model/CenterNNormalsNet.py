@@ -98,7 +98,11 @@ class CenterNNormalsNet(nn.Module):
         axis_discrete_predictions = torch.concat(
             (axis_discrete_normals, center.repeat(1, self.amount_axis_discrete_normals, 1)), dim=2
         )
-        reorder_axis_discrete = torch.tensor([0, 1, 2, 4, 5, 6, 7, 3], device=axis_discrete_predictions.device).long()
+        # 0, 1, 2 normal vector
+        # 3 is the angle
+        # 4 is the confidence
+        # 5 6 7 is the center
+        reorder_axis_discrete = torch.tensor([0, 1, 2, 5, 6, 7, 3, 4], device=axis_discrete_predictions.device).long()
         axis_discrete_predictions = axis_discrete_predictions[:, :, reorder_axis_discrete]
         axis_discrete_predictions[:, :, -1] = torch.sigmoid(axis_discrete_predictions[:, :, -1])
 

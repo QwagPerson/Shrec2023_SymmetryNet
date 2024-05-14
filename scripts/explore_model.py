@@ -1,20 +1,11 @@
 import lightning
-import torch
-
-from src.dataset.preprocessing import ComposeTransform, RandomSampler, UnitSphereNormalization
-from src.model.loss.center_loss import center_loss
-from src.model.network import LightingSymmetryNet
-from src.dataset._scratch_file import SymmetryDataModule, default_symmetry_dataset_collate_fn, \
-    default_symmetry_dataset_collate_fn_list_sym
-from torch.utils.data import Dataset
-from torch.utils.data import random_split, DataLoader, Subset
+from torch.utils.data import DataLoader, Subset
 from lightning.pytorch.callbacks import EarlyStopping
 
 if __name__ == "__main__":
-    DATA_PATH = "/data/shrec_2023/benchmark-train"
+    DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/"
     BATCH_SIZE = 1
     SAMPLE_SIZE = 1000
-    COLLATE_FN = default_symmetry_dataset_collate_fn_list_sym
 
     scaler = UnitSphereNormalization()
     sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=False)
