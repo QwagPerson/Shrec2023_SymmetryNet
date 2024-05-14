@@ -62,7 +62,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             "confidence",
             "normal",
             "distance",
-            "ref_sym_distance"
+            "ref_sym_distance",
         ]
 
         if discrete_rotational_loss == "default":
@@ -81,7 +81,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             "confidence",
             "normal",
             "distance",
-            "rot_sym_distance"
+            "rot_sym_distance",
             "angle",
         ]
         if continue_rotational_loss == "default":
