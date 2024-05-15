@@ -6,6 +6,11 @@ from src.model.decoders.prediction_head import PredictionHead
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 
 
+from pointnext_encoder_parameters import *
+from pointnext_encoder import PointNeXt
+
+
+
 class CenterNNormalsNet(nn.Module):
     def __init__(
             self,
@@ -15,6 +20,7 @@ class CenterNNormalsNet(nn.Module):
             use_bn=False,
             normalize_normals=False,
             print_losses=False,
+            use_pointnext=False,
     ):
         super().__init__()
         self.use_bn = use_bn
@@ -24,7 +30,11 @@ class CenterNNormalsNet(nn.Module):
         self.amount_axis_continue_normals = amount_of_axis_continue_normals_predicted
         self.print_losses = print_losses
 
-        self.encoder = PointNetEncoder(use_bn=self.use_bn)
+        if use_pointnext:
+            model_cfg = MODEL_CONFIG['PointNeXt_B']
+            self.encoder = PointNeXt(model_cfg).to(device=args.device)
+        else:
+            self.encoder = PointNetEncoder(use_bn=self.use_bn)
 
         # nx ny nz & confidence
         self.plane_normals_heads = nn.ModuleList(
