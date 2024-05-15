@@ -45,4 +45,4 @@ def apply_rotation(quat, points):
 
 def rotate_shape(axis, point_in_axis, angle, points):
     transformed_points = points - point_in_axis
-    return apply_rotation(create_quat(axis, angle), transformed_points)
+    return apply_rotation(create_quat(axis, angle), transformed_points) + point_in_axis

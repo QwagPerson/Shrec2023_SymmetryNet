@@ -331,4 +331,5 @@ if __name__ == '__main__':
     model = PointNetPlusPlusEncoder()
     xyz = torch.rand(2, 3, 14_440)
     out = model(xyz)
-    print(out.shape)
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(pytorch_total_params)

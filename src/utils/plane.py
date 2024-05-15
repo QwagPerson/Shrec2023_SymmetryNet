@@ -163,7 +163,7 @@ class SymPlane:
             self.normal = normal
         self.point = point
         self.offset = - torch.dot(point, normal)
-        self.confidence = None
+        self.confidence = confidence
 
     def to_tensor(self):
         if self.confidence is not None:
@@ -203,8 +203,7 @@ class SymPlane:
     def is_close(self, another_plane, angle_threshold=0.0872665, distance_threshold=0.01):
 
         angle, signed_distance = self.get_distances(another_plane)
-        return (angle < angle_threshold) | (math.pi - angle < angle_threshold) and torch.abs(
-            signed_distance) < distance_threshold
+        return angle < angle_threshold and torch.abs(signed_distance) < distance_threshold
 
     def get_distances(self, another_plane):
         angle = self.get_angle_between_planes(another_plane)

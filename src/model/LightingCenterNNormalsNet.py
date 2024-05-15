@@ -132,20 +132,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         eval_predictions = [(batch.get_points(), sym_pred, sym_true)]
         map = get_mean_average_precision(eval_predictions)
         phc = get_phc(eval_predictions)
-        """
-        for i in range(batch.size):
-            a_pred2true = pred2true[i]
-            if a_pred2true is None:
-                continue
-            else:
-                a_pred2true = torch.tensor(a_pred2true, device=self.device).float()
-                for j in range(len(a_pred2true)):
-                    self._log(a_pred2true[j], f"pred2true_batchmember_{i}_sym_{j}", sym_tag, step_tag, batch.size, sync_dist=False)
 
-        for i in range(batch.size):
-            idx = torch.tensor(batch.item_list[i].idx, device=self.device).float()
-            self._log(idx, f"id_batch_member_{i}", sym_tag, step_tag, batch.size, sync_dist=False)
-        """
 
         for idx in range(others.shape[0]):
             self._log(others[idx], f"loss_{losses_tags[idx]}", sym_tag, step_tag, batch.size)

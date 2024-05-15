@@ -9,7 +9,7 @@ from src.dataset.SymDataModule import custom_collate_fn, SymDataModule
 from src.dataset.transforms.ComposeTransform import ComposeTransform
 from src.dataset.transforms.RandomSampler import RandomSampler
 from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
-from src.metrics.MAP import get_match_sequence, get_mean_average_precision
+from src.metrics.MAP import get_match_sequence_plane_symmetry, get_mean_average_precision
 from src.metrics.PHC import get_phc
 from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     gt = item.plane_symmetries
     pr = plane_predictions[idx][plane_predictions[idx][:, -1].sort(descending=True).indices]
 
-    match_sequence = get_match_sequence(pr, gt, item.points, eps=0.01, theta=0.0174533)
+    match_sequence = get_match_sequence_plane_symmetry(pr, gt, item.points, eps=0.01, theta=0.0174533)
 
     print(f'Ground truth:\n{gt}')
     print(f'Prediction  :\n{pr}')

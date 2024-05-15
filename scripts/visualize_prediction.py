@@ -6,7 +6,7 @@ from lightning import Trainer
 from torch.utils.data import DataLoader, Subset
 
 from src.dataset._scratch_file import SymmetryDataModule, default_symmetry_dataset_collate_fn_list_sym
-from src.metrics.MAP import get_mean_average_precision, get_match_sequence
+from src.metrics.MAP import get_mean_average_precision, get_match_sequence_plane_symmetry
 from src.model._scratch_file import LightingCenterNNormalsNet
 from src.utils.plane import SymmetryPlane
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     pred_y = y_pred[0][y_pred[0][:, -1] > 0.5]
 
     # 548
-    match_sequence = get_match_sequence(pred_y, y_true[0], points[0], 0.01, 0.0174533)
+    match_sequence = get_match_sequence_plane_symmetry(pred_y, y_true[0], points[0], 0.01, 0.0174533)
     print(match_sequence)
 
     visualize_prediction(

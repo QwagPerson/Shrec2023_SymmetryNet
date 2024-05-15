@@ -131,3 +131,5 @@ if __name__ == "__main__":
     mock_x = torch.randn(bs, 3, sz)
     output = encoder.forward(mock_x)
     assert output.shape == (bs, 1024), f"Got {output.shape}"
+    pytorch_total_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad)
+    print(pytorch_total_params)

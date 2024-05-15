@@ -4,7 +4,7 @@ from src.metrics.utils import get_diagonals_length
 from src.utils.plane import SymPlane
 
 
-def get_match_sequence(y_pred, y_true, points, eps, theta):
+def get_match_sequence_plane_symmetry(y_pred, y_true, points, eps, theta):
     m = y_pred.shape[0]
 
     dist_threshold = get_diagonals_length(points) * eps
@@ -31,24 +31,37 @@ def get_match_sequence(y_pred, y_true, points, eps, theta):
     return match_sequence
 
 
-def get_pr_curve(match_sequence, groundtruth_total):
+def compute_metrics(match_sequence, groundtruth_total):
     sequence_length = match_sequence.shape[0]
+    match_amount = match_sequence.sum()
+
     num_retrieved = 0
     relevant_retrieved = 0
-    pr_curve = torch.zeros(sequence_length, 2, device=match_sequence.device)
-    for idx in range(sequence_length):
-        num_retrieved += 1
+    map_ = 0.0
+    phc = 0.0
 
+    pr_curve = torch.zeros((match_amount, 2), device=match_sequence.device)
+    for idx in range(sequence_length):
         if match_sequence[idx] == 1:
+            if num_retrieved == 0:
+                phc = 1.0
+
             relevant_retrieved += 1
 
-        precision = relevant_retrieved / num_retrieved
-        recall = relevant_retrieved / groundtruth_total
+            precision = (relevant_retrieved + 1) / (num_retrieved + 1)
+            recall = (relevant_retrieved + 1) / groundtruth_total
 
-        pr_curve[idx, 0] = recall
-        pr_curve[idx, 1] = precision
+            pr_curve[idx, 0] = recall * 100
+            pr_curve[idx, 1] = precision
 
-    return pr_curve
+            map_ = map_ + precision
+            relevant_retrieved = relevant_retrieved + 1
+
+        num_retrieved += 1
+
+    map_ = map_ / match_amount
+
+    return map_, phc, pr_curve
 
 
 def interpolate_pr_curve(uninterpolated_pr_curve, steps=11):
@@ -85,20 +98,12 @@ def calculate_average_precision(points, y_pred, y_true, eps, theta):
     # Edge case where there are no known plane symmetries
     # Only true when the confidence is very low => The model knows there prob would be any symmetries.
     # That 0.1 should be a hparam but right now its fixed to test.
-    if y_true is None:
-        m = y_pred.shape[0]
-        y_pred = [SymPlane.from_tensor(y_pred[idx, 0:6], y_pred[idx, -1]) for idx in range(m)]
-        y_pred = sorted(y_pred, key=lambda x: x.confidence, reverse=True)
-        if y_pred[0].confidence < 0.1:
-            return 1.0
-        else:
-            return 0.0
-    match_sequence = get_match_sequence(y_pred, y_true, points, eps, theta)
-    uninterpolated_pr_curve = get_pr_curve(match_sequence, y_true.shape[0])
-    interpolated_pr_curve = interpolate_pr_curve(uninterpolated_pr_curve)
-    average_precision = calculate_area_under_curve(interpolated_pr_curve)
 
-    return average_precision
+    match_sequence = get_match_sequence_plane_symmetry(y_pred, y_true, points, eps, theta)
+    map_, phc, uninterpolated_pr_curve = compute_metrics(match_sequence, y_true.shape[0])
+    interpolated_pr_curve = interpolate_pr_curve(uninterpolated_pr_curve)
+
+    return map_, phc, interpolated_pr_curve
 
 
 def get_average_precision(points_list, y_pred_list, y_true_list, eps, theta):
@@ -140,3 +145,5 @@ def get_mean_average_precision(predictions, eps=0.01, theta=0.0174533):
         ), device=device_used))
     average_precision_tensor = torch.hstack(average_precisions_per_batch).to(device_used)
     return average_precision_tensor.mean()
+
+
