@@ -51,6 +51,7 @@ def get_match_sequence_continue_rotational_symmetry(points, y_pred, y_true, para
     else:
         k = y_true.shape[0]
         assert y_true.shape[1] == 6
+        angles = torch.tensor([1.57], device=y_true.device).repeat(y_true.shape[0]).unsqueeze(dim=1)
         y_true = torch.concat([y_true, angles], dim=1)
         y_true = [RotAxis.from_tensor(y_true[idx]) for idx in range(k)]
 
@@ -198,6 +199,7 @@ def calculate_metrics_from_predictions(predictions, match_sequence_fun, param_di
     maps = []
     phcs = []
     pr_curves = []
+    device = predictions[0][1].device
 
     for prediction in predictions:
         batch_points, batch_y_pred, batch_y_true = prediction
@@ -214,8 +216,8 @@ def calculate_metrics_from_predictions(predictions, match_sequence_fun, param_di
             phcs.append(phc)
             pr_curves.append(pr_curve)
 
-    total_map = torch.tensor(maps).mean()
-    total_phc = torch.tensor(phcs).mean()
+    total_map = torch.tensor(maps, device=device).mean()
+    total_phc = torch.tensor(phcs, device=device).mean()
 
     interpolated_pr_curves = [interpolate_pr_curve(x) for x in pr_curves]
     total_pr_curve = torch.stack(interpolated_pr_curves).mean(dim=0)
