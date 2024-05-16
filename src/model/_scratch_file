@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     test_batch = next(iter(datamodule.train_dataloader()))
 
-    trainer = lightning.Trainer(enable_progress_bar=True, logger=False, fast_dev_run=True) # , fast_dev_run=True
+    trainer = lightning.Trainer(enable_progress_bar=True, logger=False, overfit_batches=10) # , fast_dev_run=True
     trainer.fit(test_net, datamodule)
     exit(0)
     print(f'Training dataset has: {len(datamodule.train_dataset) = } batches')
