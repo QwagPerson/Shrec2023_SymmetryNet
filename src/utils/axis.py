@@ -1,7 +1,7 @@
 import math
 
 import torch
-from quaternion import create_quat, apply_rotation, rotate_shape
+from src.utils.quaternion import create_quat, apply_rotation, rotate_shape
 
 
 class RotAxis:
@@ -40,20 +40,22 @@ class RotAxis:
         )
 
     def get_distance_to_points(self, points):
-        # N x 3 x 3 x 1 -> N x 1
         return torch.norm(
             torch.linalg.cross(self.point - points, self.axis.unsqueeze(dim=0).repeat(points.shape[0], 1)),
             dim=1
         )
 
-    def is_close(self, another_plane, angle_threshold, distance_threshold):
-        angle, signed_distance = self.get_distances(another_plane)
-        return angle < angle_threshold and torch.abs(signed_distance) < distance_threshold
+    def is_close(self, another_plane, angle_threshold, distance_threshold, rot_angle_threshold):
+        angle, signed_distance, rot_angle_difference = self.get_distances(another_plane)
+        return (angle < angle_threshold and
+                torch.abs(signed_distance) < distance_threshold and
+                torch.abs(rot_angle_difference) < rot_angle_threshold)
 
     def get_distances(self, another_axis):
-        angle = self.get_angle_between_axis(another_axis)
+        angle_between_axis = self.get_angle_between_axis(another_axis)
         distance = self.get_distance_to_points(another_axis.point.unsqueeze(0)).squeeze()
-        return angle, distance
+        rot_angle_difference = self.angle - another_axis.angle
+        return angle_between_axis, distance, rot_angle_difference
 
     def __repr__(self):
         return f"N:{self.axis}, P:{self.point}, A:{self.angle}, C:{self.confidence}"

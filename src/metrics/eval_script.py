@@ -1,7 +1,16 @@
 import torch
 
-from src.metrics.utils import get_diagonals_length
+from src.utils.axis import RotAxis
 from src.utils.plane import SymPlane
+
+
+def get_diagonals_length(points: torch.Tensor):
+    """
+    :param points: Shape N x 3
+    :return: length Shape 1
+    """
+    diagonal = points.max(dim=0).values - points.min(dim=0).values
+    return torch.linalg.norm(diagonal)
 
 
 def interpolate_pr_curve(uninterpolated_pr_curve, steps=11):
@@ -21,16 +30,114 @@ def interpolate_pr_curve(uninterpolated_pr_curve, steps=11):
     return torch.vstack((recall_values, precision_values))
 
 
-def get_match_sequence_plane_symmetry(points, y_pred, y_true, eps, theta, confidence_threshold):
+def get_match_sequence_continue_rotational_symmetry(points, y_pred, y_true, param_dict):
+    eps = param_dict["eps"]
+    theta = param_dict["theta"]
+    rot_angle_threshold = param_dict["rot_angle_threshold"]
+    confidence_threshold = param_dict["confidence_threshold"]
     dist_threshold = get_diagonals_length(points) * eps
+
+    assert y_pred.shape[1] == 7
+    angles = torch.tensor([1.57], device=y_pred.device).repeat(y_pred.shape[0]).unsqueeze(dim=1)
+    y_pred = torch.concat([y_pred, angles], dim=1)
+    y_pred = [RotAxis.from_tensor(y_pred[idx, 0:7], y_pred[idx, -1]) for idx in range(y_pred.shape[0])]
+
+    y_pred = [x for x in y_pred if x.confidence > confidence_threshold]
+    y_pred = sorted(y_pred, key=lambda x: x.confidence, reverse=True)
+
+    m = len(y_pred)
+    if y_true is None:
+        y_true = []
+    else:
+        k = y_true.shape[0]
+        assert y_true.shape[1] == 6
+        y_true = torch.concat([y_true, angles], dim=1)
+        y_true = [RotAxis.from_tensor(y_true[idx]) for idx in range(k)]
+
+    match_sequence = torch.zeros(m)
+
+    for pred_idx, pred_plane in enumerate(y_pred):
+        match_idx = -1
+
+        for true_idx, true_plane in enumerate(y_true):
+            if pred_plane.is_close(
+                    true_plane,
+                    angle_threshold=theta,
+                    distance_threshold=dist_threshold,
+                    rot_angle_threshold=rot_angle_threshold):
+                match_idx = true_idx
+                break
+
+        if match_idx != -1:
+            match_sequence[pred_idx] = 1
+            y_true.pop(match_idx)
+
+    return match_sequence
+
+
+def get_match_sequence_discrete_rotational_symmetry(points, y_pred, y_true, param_dict):
+    eps = param_dict["eps"]
+    theta = param_dict["theta"]
+    rot_angle_threshold = param_dict["rot_angle_threshold"]
+    confidence_threshold = param_dict["confidence_threshold"]
+    dist_threshold = get_diagonals_length(points) * eps
+
+    assert y_pred.shape[1] == 8
+
+    y_pred = [RotAxis.from_tensor(y_pred[idx, 0:7], y_pred[idx, -1]) for idx in range(y_pred.shape[0])]
+
+    y_pred = [x for x in y_pred if x.confidence > confidence_threshold]
+    y_pred = sorted(y_pred, key=lambda x: x.confidence, reverse=True)
+
+    m = len(y_pred)
+    if y_true is None:
+        y_true = []
+    else:
+        k = y_true.shape[0]
+        assert y_true.shape[1] == 7
+        y_true = [RotAxis.from_tensor(y_true[idx]) for idx in range(k)]
+
+    match_sequence = torch.zeros(m)
+
+    for pred_idx, pred_plane in enumerate(y_pred):
+        match_idx = -1
+
+        for true_idx, true_plane in enumerate(y_true):
+            if pred_plane.is_close(
+                    true_plane,
+                    angle_threshold=theta,
+                    distance_threshold=dist_threshold,
+                    rot_angle_threshold=rot_angle_threshold):
+                match_idx = true_idx
+                break
+
+        if match_idx != -1:
+            match_sequence[pred_idx] = 1
+            y_true.pop(match_idx)
+
+    return match_sequence
+
+
+def get_match_sequence_plane_symmetry(points, y_pred, y_true, param_dict):
+    eps = param_dict["eps"]
+    theta = param_dict["theta"]
+    confidence_threshold = param_dict["confidence_threshold"]
+    dist_threshold = get_diagonals_length(points) * eps
+
+    assert y_pred.shape[1] == 7
 
     y_pred = [SymPlane.from_tensor(y_pred[idx, 0:6], y_pred[idx, -1]) for idx in range(y_pred.shape[0])]
     y_pred = [x for x in y_pred if x.confidence > confidence_threshold]
     y_pred = sorted(y_pred, key=lambda x: x.confidence, reverse=True)
 
     m = len(y_pred)
-    k = y_true.shape[0]
-    y_true = [SymPlane.from_tensor(y_true[idx, 0:6]) for idx in range(k)]
+    if y_true is None:
+        y_true = []
+    else:
+        k = y_true.shape[0]
+        assert y_true.shape[1] == 6
+        y_true = [SymPlane.from_tensor(y_true[idx]) for idx in range(k)]
+
     match_sequence = torch.zeros(m)
 
     for pred_idx, pred_plane in enumerate(y_pred):
@@ -80,13 +187,11 @@ def calculate_metrics(match_sequence, groundtruth_total):
     return map_, phc, pr_curve
 
 
-def calculate_metrics_from_predictions(predictions, match_sequence_fun, eps, theta, confidence_threshold):
+def calculate_metrics_from_predictions(predictions, match_sequence_fun, param_dict):
     """
 
     :param predictions: List of predictions.
-                        predictions[i] = (batch_points[i], batch_y_pred, batch_y_true)
-    :param eps:
-    :param theta:
+                        predictions[i] = (batch_points, batch_y_pred, batch_y_true)
     :return:
     """
 
@@ -96,13 +201,14 @@ def calculate_metrics_from_predictions(predictions, match_sequence_fun, eps, the
 
     for prediction in predictions:
         batch_points, batch_y_pred, batch_y_true = prediction
-        batch_size = batch_points.shape[0]
+        batch_size = batch_y_pred.shape[0]
         for idx in range(batch_size):
             points = batch_points[idx]
             y_pred = batch_y_pred[idx]
             y_true = batch_y_true[idx]
-            matches = match_sequence_fun(points, y_pred, y_true, eps, theta, confidence_threshold)
-            map_, phc, pr_curve = calculate_metrics(matches, y_true.shape[0])
+            gt_count = y_true.shape[0] if y_true is not None else 0
+            matches = match_sequence_fun(points, y_pred, y_true, param_dict)
+            map_, phc, pr_curve = calculate_metrics(matches, gt_count)
 
             maps.append(map_)
             phcs.append(phc)
@@ -123,8 +229,18 @@ if __name__ == "__main__":
     gt = 4
     predictions = [
         [
-            torch.rand((bs, 10, 3)), torch.rand((bs, h, 7)), [torch.rand(gt, 6) for _ in range(bs)]
+            torch.rand((bs, 10, 3)), torch.rand((bs, h, 7)), [torch.rand(gt, 7) for _ in range(bs)]
         ] for _ in range(10)
     ]
-    end = calculate_metrics_from_predictions(predictions, get_match_sequence_plane_symmetry, 0.4, 0.02, 0.5)
+    pdict = {
+        "eps": 0.01,
+        "theta": 0.01,
+        "confidence_threshold": 0.1,
+        "rot_angle_threshold": 0.01,
+    }
+    end = calculate_metrics_from_predictions(predictions, get_match_sequence_continue_rotational_symmetry, pdict)
     print(end)
+
+
+def get_match_sequence_rotational_symmetry():
+    return None

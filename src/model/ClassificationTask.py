@@ -111,9 +111,9 @@ class ClassificationTask(lightning.LightningModule):
         points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 
-        plane_predictions, axis_discrete_predictions, axis_continue_predictions = self.net.forward(points)
+        logits = self.net.forward(points)
 
-        return batch, plane_predictions, axis_discrete_predictions, axis_continue_predictions
+        return logits
 
     def on_after_backward(self):
         for name, param in self.net.named_parameters():

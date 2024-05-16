@@ -3,13 +3,14 @@ from typing import Callable, Union
 import lightning
 import torch
 
-from src.metrics.MAP import get_mean_average_precision
-from src.metrics.PHC import get_phc
+from src.metrics.eval_script import calculate_metrics_from_predictions, get_match_sequence_plane_symmetry, \
+    get_match_sequence_continue_rotational_symmetry, \
+    get_match_sequence_discrete_rotational_symmetry
 from src.model.CenterNNormalsNet import CenterNNormalsNet
-from src.model.losses.DiscreteRotationalSymmetryLoss import DiscreteRotationalSymmetryLoss
-from src.model.losses.NormalLoss import NormalLoss
 from src.model.losses.ConfidenceLoss import ConfidenceLoss
+from src.model.losses.DiscreteRotationalSymmetryLoss import DiscreteRotationalSymmetryLoss
 from src.model.losses.DistanceLoss import DistanceLoss
+from src.model.losses.NormalLoss import NormalLoss
 from src.model.losses.ReflectionSymmetryDistance import ReflectionSymmetryDistance
 from src.model.losses.ReflectionSymmetryLoss import ReflectionSymmetryLoss
 from src.model.losses.RotationalSymmetryDistance import RotationalSymmetryDistance
@@ -29,6 +30,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  w1: float = 1.0,
                  w2: float = 1.0,
                  w3: float = 1.0,
+                 eps: float = 0.01,
+                 theta: float = 0.00015230484,  # 1° between axis/normals
+                 confidence_threshold: float = 0.01,
+                 rot_angle_threshold: float = 0.0174533,  # 1° of difference between rot angles
                  cost_matrix_method: Callable = calculate_cost_matrix_normals,
                  print_losses: bool = False,
                  use_bn: bool = False,
@@ -110,6 +115,17 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             encoder=encoder,
             n_points=self.n_points
         )
+        self.eps = eps
+        self.theta = theta
+        self.confidence_threshold = confidence_threshold
+        self.rot_angle_threshold = rot_angle_threshold
+        self.metric_param_dict = {
+            "eps": self.eps,
+            "theta": self.theta,
+            "confidence_threshold": self.confidence_threshold,
+            "rot_angle_threshold": self.rot_angle_threshold,
+        }
+
         self.save_hyperparameters(ignore=["net", "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"])
 
     def configure_optimizers(self):
@@ -123,22 +139,24 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.log(f"{sym_tag}_{step_tag}_{metric_name}", metric_val, on_step=on_step, on_epoch=on_epoch,
                  prog_bar=prog_bar, batch_size=batch_size, sync_dist=sync_dist)
 
-    def _process_prediction(self, batch, sym_pred, sym_true, loss_fun, sym_tag, step_tag, losses_tags):
+    def _process_prediction(self,
+                            batch, sym_pred, sym_true,
+                            loss_fun, sym_tag, step_tag,
+                            losses_tags, metrics_match_sequence_fun):
         c_hat, match_pred, match_true, pred2true, true2pred = self.matcher.get_optimal_assignment(batch.get_points(),
                                                                                                   sym_pred, sym_true)
         bundled_predictions = (batch, sym_pred, c_hat, match_pred, match_true)
         loss, others = loss_fun(bundled_predictions)
 
         eval_predictions = [(batch.get_points(), sym_pred, sym_true)]
-        map = get_mean_average_precision(eval_predictions)
-        phc = get_phc(eval_predictions)
-
+        map, phc, pr_curve = calculate_metrics_from_predictions(eval_predictions, metrics_match_sequence_fun,
+                                                                self.metric_param_dict)
 
         for idx in range(others.shape[0]):
             self._log(others[idx], f"loss_{losses_tags[idx]}", sym_tag, step_tag, batch.size)
 
-        self._log(loss, "loss", sym_tag, step_tag, batch.size, prog_bar=True)
-        self._log(map, "map", sym_tag, step_tag, batch.size, prog_bar=True)
+        self._log(loss, "loss", sym_tag, step_tag, batch.size)
+        self._log(map, "map", sym_tag, step_tag, batch.size)
         self._log(phc, "phc", sym_tag, step_tag, batch.size)
 
         return loss, map, phc
@@ -155,25 +173,26 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         if plane_predictions is not None:
             plane_loss, plane_map, plane_phc = self._process_prediction(
                 batch, plane_predictions, batch.get_plane_syms(), self.plane_loss,
-                "plane", step_tag, self.plane_loss_tag
+                "plane", step_tag, self.plane_loss_tag, get_match_sequence_plane_symmetry,
             )
             loss += plane_loss * self.w1
 
         if axis_discrete_predictions is not None:
             discrete_axis_loss, map_discrete_axis, phc_discrete_axis = self._process_prediction(
                 batch, axis_discrete_predictions, batch.get_axis_discrete_syms(), self.discrete_rotational_loss,
-                "d_axis", step_tag, self.discrete_rotational_loss_tag
+                "d_axis", step_tag, self.discrete_rotational_loss_tag, get_match_sequence_discrete_rotational_symmetry
             )
             loss += discrete_axis_loss * self.w2
 
         if axis_continue_predictions is not None:
             continue_axis_loss, map_continue_axis, phc_continue_axis = self._process_prediction(
                 batch, axis_continue_predictions, batch.get_axis_continue_syms(), self.continue_rotational_loss,
-                "c_axis", step_tag, self.continue_rotational_loss_tag
+                "c_axis", step_tag, self.continue_rotational_loss_tag, get_match_sequence_continue_rotational_symmetry
 
             )
             loss += continue_axis_loss * self.w3
 
+        self._log(loss, "loss", "total", step_tag, batch.size, prog_bar=True)
         return loss
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
