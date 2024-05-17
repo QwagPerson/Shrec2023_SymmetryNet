@@ -232,6 +232,7 @@ model:
   w3: 1.0
   cost_matrix_method: src.model.matchers.cost_matrix_methods.calculate_cost_matrix_normals
   print_losses: true
+  pointnext_encoder: 'PointNeXt_B' # 'PointNeXt_B' (21.5 M), 'PointNeXt_L2' (32.0 M), 'PointNeXt_XXL' (73.8 M)
   use_bn: false
   normalize_normals: true
 data:

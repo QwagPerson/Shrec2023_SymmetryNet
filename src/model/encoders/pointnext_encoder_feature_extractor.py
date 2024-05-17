@@ -141,7 +141,7 @@ class InvResMLP(nn.Module):
         super().__init__()
         self.la = LocalAggregation(radius=radius, nsample=nsample, in_channel=in_channel, coor_dim=coor_dim)
         channel_list = [in_channel * expansion, in_channel]
-        print(f'{expansion = } - {channel_list = }')
+        #print(f'{expansion = } - {channel_list = }')
         self.pw_conv = build_mlp(in_channel=in_channel, channel_list=channel_list, dim=1, drop_last_act=True)
         self.act = nn.ReLU(inplace=True)
 

@@ -20,7 +20,8 @@ class CenterNNormalsNet(nn.Module):
             use_bn=False,
             normalize_normals=False,
             print_losses=False,
-            use_pointnext=True,
+            #use_pointnext=True,
+            pointnext_encoder='None',		# 'PointNeXt_B' (21.5 M), 'PointNeXt_L2' (32.0 M), 'PointNeXt_XXL' (73.8 M)
     ):
         super().__init__()
         self.use_bn = use_bn
@@ -29,14 +30,16 @@ class CenterNNormalsNet(nn.Module):
         self.amount_axis_discrete_normals = amount_of_axis_discrete_normals_predicted
         self.amount_axis_continue_normals = amount_of_axis_continue_normals_predicted
         self.print_losses = print_losses
-        self.use_pointnext = use_pointnext
+        #self.use_pointnext = use_pointnext
+        self.pointnext_encoder = pointnext_encoder
 
-        if self.use_pointnext:
+        if self.pointnext_encoder != 'None':
             #model_cfg = MODEL_CONFIG['PointNeXt_B']
             #model_cfg = MODEL_CONFIG['PointNeXt_L2']
-            model_cfg = MODEL_CONFIG['PointNeXt_XXL']
+            #model_cfg = MODEL_CONFIG['PointNeXt_XXL']
+            model_cfg = MODEL_CONFIG[self.pointnext_encoder]
             self.encoder = PointNeXt(model_cfg) # .to(device=args.device)
-            print(f'PointNeXt encoder: {self.encoder}')
+            print(f'PointNeXt encoder {pointnext_encoder}: {self.encoder}')
         else:
             self.encoder = PointNetEncoder(use_bn=self.use_bn)
             print(f'PointNet encoder: {self.encoder}')

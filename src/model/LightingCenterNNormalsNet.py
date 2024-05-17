@@ -31,6 +31,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  w3: float = 1.0,
                  cost_matrix_method: Callable = calculate_cost_matrix_normals,
                  print_losses: bool = False,
+                 pointnext_encoder: str = 'None',
                  use_bn: bool = False,
                  normalize_normals: bool = True
                  ):
@@ -38,6 +39,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.use_bn = use_bn
         self.normalize_normals = normalize_normals
         self.print_losses = print_losses
+        self.pointnext_encoder = pointnext_encoder
         self.cost_matrix_method = cost_matrix_method
         self.matcher = SimpleMatcher(self.cost_matrix_method, self.device)
         self.w1 = w1
@@ -104,6 +106,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             use_bn=self.use_bn,
             normalize_normals=self.normalize_normals,
             print_losses=self.print_losses,
+            pointnext_encoder=self.pointnext_encoder,
         )
         self.save_hyperparameters(ignore=["net", "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"])
 

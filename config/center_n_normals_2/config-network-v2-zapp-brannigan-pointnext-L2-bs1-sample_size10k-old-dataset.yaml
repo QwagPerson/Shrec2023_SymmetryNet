@@ -47,7 +47,7 @@ trainer:
       log_rank_zero_only: false
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
-      dirpath: ~/zzz________________symnet-models/bs8-pointnext-10k
+      dirpath: ~/zzz________________symnet-models/bs1-pointnext-10k
       #filename: epoch-{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       filename: 'epoch-{epoch}-{plane_train_loss_epoch:.3f}-{plane_train_map_epoch:.3f}-{plane_val_loss_epoch:.3f}-{plane_val_map_epoch:.3f}'
       monitor: plane_train_map_epoch
@@ -64,7 +64,7 @@ trainer:
       enable_version_counter: true
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
-      dirpath: ~/zzz________________symnet-models/bs8-pointnext-10k
+      dirpath: ~/zzz________________symnet-models/bs1-pointnext-10k
       #filename: epoch-{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       filename: 'epoch-{epoch}-{plane_train_loss_epoch:.3f}-{plane_train_map_epoch:.3f}-{plane_val_loss_epoch:.3f}-{plane_val_map_epoch:.3f}'
       monitor: plane_val_map_epoch
@@ -81,7 +81,7 @@ trainer:
       enable_version_counter: true
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
-      dirpath: ~/zzz________________symnet-models/bs8-pointnext-10k
+      dirpath: ~/zzz________________symnet-models/bs1-pointnext-10k
       #filename: epoch-{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       filename: 'epoch-{epoch}-{plane_train_loss_epoch:.3f}-{plane_train_map_epoch:.3f}-{plane_val_loss_epoch:.3f}-{plane_val_map_epoch:.3f}'
       monitor: plane_train_loss_epoch
@@ -98,7 +98,7 @@ trainer:
       enable_version_counter: true
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
-      dirpath: ~/zzz________________symnet-models/bs8-pointnext-10k
+      dirpath: ~/zzz________________symnet-models/bs1-pointnext-10k
       #filename: epoch-{epoch}-{train_loss:.3f}-{val_loss:.3f}-{train_MAP:.3f}-{val_MAP:.3f}
       filename: 'epoch-{epoch}-{plane_train_loss_epoch:.3f}-{plane_train_map_epoch:.3f}-{plane_val_loss_epoch:.3f}-{plane_val_map_epoch:.3f}'
       monitor: plane_val_loss_epoch
@@ -232,14 +232,14 @@ model:
   w3: 1.0
   cost_matrix_method: src.model.matchers.cost_matrix_methods.calculate_cost_matrix_normals
   print_losses: true
-  pointnext_encoder: 'PointNeXt_B' # 'PointNeXt_B' (21.5 M), 'PointNeXt_L2' (32.0 M), 'PointNeXt_XXL' (73.8 M)
+  pointnext_encoder: 'PointNeXt_L2' # 'PointNeXt_B' (21.5 M), 'PointNeXt_L2' (32.0 M), 'PointNeXt_XXL' (73.8 M)
   use_bn: false
   normalize_normals: true
 data:
   dataset_path: /tmp/ramdrive/shrec-2023-benchmark-train-packaged-as-dataset-v3
   predict_data_path: /path/to/predict_data
   does_predict_has_ground_truths: false
-  batch_size: 8
+  batch_size: 1
   transform:
     class_path: src.dataset.transforms.ComposeTransform.ComposeTransform
     init_args:
