@@ -11,7 +11,7 @@ def str_to_bool(s):
     else:
         raise TypeError(f'str {s} can not convert to bool.')
 
-
+'''
 parser = argparse.ArgumentParser(description='Feature Extractor for Alignment')
 
 # 基本参数
@@ -69,6 +69,7 @@ parser.add_argument('--auto_cast',              default='False',                
                     help='Using torch.cuda.amp.autocast to accelerate computing')
 parser.add_argument('--gpu_index',              default='0',                    type=str,
                     help='Index of gpu')
+'''
 
 '''数据增强配置参数'''
 aug_None = {}
@@ -77,9 +78,11 @@ DATA_AUG_CONFIG = {'None': aug_None, 'basic': aug_basic}
 
 '''模型配置参数'''
 PointNeXt_B = {
-    'type': 'classification',
+    #'type': 'classification',
+    'type': 'symmetry-regression',
     'num_class': 40,
     'max_input': 14400,  # 输入点最大数量
+    #'max_input': 5000,  # 输入点最大数量
     'npoint': [512, 128, 32, 8],
     #'npoint': [2048, 512, 128, 32, 8],
     'radius_list': [[0.1, 0.2], [0.2, 0.4, 0.4], [0.4, 0.8], [0.8, 1.6]],
@@ -87,14 +90,16 @@ PointNeXt_B = {
     'nsample_list': [[16, 16], [16, 16, 16], [16, 16], [8, 8]],
     #'nsample_list': [[16, 16], [16, 16], [16, 16, 16], [16, 16], [8, 8]],
     'coor_dim': 3,
+    #'width': 16,
     'width': 32,
     #'width': 64,
     'expansion': 4,
     'normal': False,
-    'head': [512, 256]
+    #'head': [512, 256]
+    #'head': [1024]	# an adapter layer in this case
 }
 PointNeXt_L2 = {
-    'type': 'classification',
+    'type': 'symmetry-regression',
     'num_class': 40,
     'max_input': 14400,  # 输入点最大数量
     #'npoint': [512, 128, 32, 8],
@@ -108,7 +113,7 @@ PointNeXt_L2 = {
     #'width': 64,
     'expansion': 4,
     'normal': False,
-    'head': [512, 256]
+    #'head': [512, 256]
 }
 
 MODEL_CONFIG = {

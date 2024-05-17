@@ -1,5 +1,6 @@
 import torch.nn as nn
-from FeatureExtractorPart.pointnext import Stage, FeaturePropagation, Head
+from src.model.encoders.pointnext_encoder_feature_extractor import Stage, FeaturePropagation, Head
+from src.model.encoders.pointnext_encoder_utils import build_mlp
 
 
 class PointNeXt(nn.Module):
@@ -36,23 +37,37 @@ class PointNeXt(nn.Module):
                                        coor_dim=self.coor_dim)
                 )
                 width = width // 2
+        if self.type == 'symmetry-regression': # we build and use these outside
+            self.head = build_mlp(in_channel=width, channel_list=[width // 4], dim=1)
+        else:
+            self.head = Head(in_channel=width, mlp=cfg['head'], num_class=self.num_class, task_type=self.type)
 
-        self.head = Head(in_channel=width, mlp=cfg['head'], num_class=self.num_class, task_type=self.type)
-
-    def forward(self, x):
+    def forward(self, x, debug=True):
+        if debug:
+            print(f'x shape: {x.shape}')
         l0_xyz, l0_points = x[:, :self.coor_dim, :], x[:, :self.coor_dim + self.coor_dim * self.normal, :]
         l0_points = self.mlp(l0_points)
 
         record = [[l0_xyz, l0_points]]
         for stage in self.stage:
             record.append(list(stage(*record[-1])))
+        if debug:
+            print(f'record: {len(record)}\n{record}')
+            for rec in record:
+                print(f'{type(rec)}')
+                print(f'{len(rec)}')
+                print(f'{rec[0].shape = } {rec[1].shape = }')
         if self.type == 'segmentation':
             for i, decoder in enumerate(self.decoder):
                 record[-i-2][1] = decoder(record[-i-2][0], record[-i-1][0], record[-i-2][1], record[-i-1][1])
             points_cls = self.head(record[0][1])
-
-        else:
+        elif self.type == 'symmetry-regression':
             points_cls = self.head(record[-1][1])
+            points_cls = points_cls.reshape(-1, 1024)
+            #points_cls =  record[-1][1]
+        else:	# classification
+            points_cls = self.head(record[-1][1])
+        print(f'points_cls shape: {points_cls.shape}')
 
         return points_cls
 
