@@ -42,7 +42,7 @@ class PointNeXt(nn.Module):
         else:
             self.head = Head(in_channel=width, mlp=cfg['head'], num_class=self.num_class, task_type=self.type)
 
-    def forward(self, x, debug=True):
+    def forward(self, x, debug=False):
         if debug:
             print(f'x shape: {x.shape}')
         l0_xyz, l0_points = x[:, :self.coor_dim, :], x[:, :self.coor_dim + self.coor_dim * self.normal, :]
@@ -67,7 +67,8 @@ class PointNeXt(nn.Module):
             #points_cls =  record[-1][1]
         else:	# classification
             points_cls = self.head(record[-1][1])
-        print(f'points_cls shape: {points_cls.shape}')
+        if debug:
+            print(f'points_cls shape: {points_cls.shape}')
 
         return points_cls
 
