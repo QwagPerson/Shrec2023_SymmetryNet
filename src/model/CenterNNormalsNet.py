@@ -32,7 +32,9 @@ class CenterNNormalsNet(nn.Module):
         self.use_pointnext = use_pointnext
 
         if self.use_pointnext:
-            model_cfg = MODEL_CONFIG['PointNeXt_B']
+            #model_cfg = MODEL_CONFIG['PointNeXt_B']
+            #model_cfg = MODEL_CONFIG['PointNeXt_L2']
+            model_cfg = MODEL_CONFIG['PointNeXt_XXL']
             self.encoder = PointNeXt(model_cfg) # .to(device=args.device)
             print(f'PointNeXt encoder: {self.encoder}')
         else:

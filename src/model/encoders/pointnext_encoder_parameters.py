@@ -80,7 +80,7 @@ DATA_AUG_CONFIG = {'None': aug_None, 'basic': aug_basic}
 PointNeXt_B = {
     #'type': 'classification',
     'type': 'symmetry-regression',
-    'num_class': 40,
+    #'num_class': 40,
     'max_input': 14400,  # 输入点最大数量
     #'max_input': 5000,  # 输入点最大数量
     'npoint': [512, 128, 32, 8],
@@ -94,13 +94,14 @@ PointNeXt_B = {
     'width': 32,
     #'width': 64,
     'expansion': 4,
+    'adapter_div': 4,
     'normal': False,
     #'head': [512, 256]
     #'head': [1024]	# an adapter layer in this case
 }
 PointNeXt_L2 = {
     'type': 'symmetry-regression',
-    'num_class': 40,
+    #'num_class': 40,
     'max_input': 14400,  # 输入点最大数量
     #'npoint': [512, 128, 32, 8],
     'npoint': [2048, 512, 128, 32, 8],
@@ -112,6 +113,25 @@ PointNeXt_L2 = {
     'width': 32,
     #'width': 64,
     'expansion': 4,
+    'adapter_div': 8,
+    'normal': False,
+    #'head': [512, 256]
+}
+PointNeXt_XXL = {
+    'type': 'symmetry-regression',
+    #'num_class': 40,
+    'max_input': 14400,  # 输入点最大数量
+    #'npoint': [512, 128, 32, 8],
+    'npoint': [2048, 512, 128, 32, 8],
+    #'radius_list': [[0.1, 0.2], [0.2, 0.4, 0.4], [0.4, 0.8], [0.8, 1.6]],
+    'radius_list': [[0.05, 0.1], [0.1, 0.2], [0.2, 0.4, 0.4], [0.4, 0.8], [0.8, 1.6]],
+    #'nsample_list': [[16, 16], [16, 16, 16], [16, 16], [8, 8]],
+    'nsample_list': [[16, 16], [16, 16], [16, 16, 16], [16, 16], [8, 8]],
+    'coor_dim': 3,
+    #'width': 32,
+    'width': 64,
+    'expansion': 4,
+    'adapter_div': 16,
     'normal': False,
     #'head': [512, 256]
 }
@@ -119,4 +139,5 @@ PointNeXt_L2 = {
 MODEL_CONFIG = {
     'PointNeXt_B' : PointNeXt_B,
     'PointNeXt_L2': PointNeXt_L2,
+    'PointNeXt_XXL': PointNeXt_XXL,
 }

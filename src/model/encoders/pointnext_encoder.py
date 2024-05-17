@@ -11,10 +11,12 @@ class PointNeXt(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.type = cfg['type']
-        self.num_class = cfg['num_class']
+        if self.type != 'symmetry-regression':
+            self.num_class = cfg['num_class']
         self.coor_dim = cfg['coor_dim']
         self.normal = cfg['normal']
         width = cfg['width']
+        adapter_div = cfg['adapter_div']
 
         self.mlp = nn.Conv1d(in_channels=self.coor_dim + self.coor_dim * self.normal,
                              out_channels=width, kernel_size=1)
@@ -37,8 +39,9 @@ class PointNeXt(nn.Module):
                                        coor_dim=self.coor_dim)
                 )
                 width = width // 2
-        if self.type == 'symmetry-regression': # we build and use these outside
-            self.head = build_mlp(in_channel=width, channel_list=[width // 4], dim=1)
+        if self.type == 'symmetry-regression':
+            # we need an adapter layer that brings us to 1024 activations (to be backward compatible with PointNet)
+            self.head = build_mlp(in_channel=width, channel_list=[width // adapter_div], dim=1)
         else:
             self.head = Head(in_channel=width, mlp=cfg['head'], num_class=self.num_class, task_type=self.type)
 
