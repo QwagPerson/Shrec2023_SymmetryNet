@@ -6,8 +6,8 @@ import numpy as np
 import torch
 from lightning import Trainer
 
-from src.model.center_n_normals_net import LightingCenterNNormalsNet
-from src.dataset.shrec2023 import SymmetryDataModule
+from src.model._scratch_file import LightingCenterNNormalsNet
+from src.dataset._scratch_file import SymmetryDataModule
 
 
 def save_prediction(batch, y_pred, path):

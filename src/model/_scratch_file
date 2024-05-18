@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+import random
+
+import lightning
+import torch
+from torch.utils.data import Subset, DataLoader
+
+from src.dataset.SymDataModule import custom_collate_fn, SymDataModule
+from src.dataset.transforms.ComposeTransform import ComposeTransform
+from src.dataset.transforms.RandomSampler import RandomSampler
+from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalization
+from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
+
+if __name__ == "__main__":
+
+    DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/" # "/data/temp"#
+    MODEL_PATH = "/home/gustavo_santelices/Documents/Universidad/2024-1/simetrias/models/center_n_normals_3_many_heads_good_encoder/version_0/checkpoints/epoch=54_plane_train_map_epoch=0.286_d_axis_train_loss_epoch=0.791_c_axis_train_loss_epoch=0.100.ckpt"
+    BATCH_SIZE = 2
+    PREDICT_SAMPLES = 10
+    SAMPLE_SIZE = 14_440
+    COLLATE_FN = custom_collate_fn
+    NUM_WORKERS = 15
+
+    scaler = UnitSphereNormalization()
+    sampler = RandomSampler(sample_size=SAMPLE_SIZE, keep_copy=True)
+    compose_transform = ComposeTransform([sampler, scaler])
+    #compose_transform = ComposeTransform([scaler])
+
+    datamodule = SymDataModule(
+        dataset_path=DATA_PATH,
+        predict_data_path=DATA_PATH,
+        does_predict_has_ground_truths=True,
+        batch_size=BATCH_SIZE,
+        transform=compose_transform,
+        collate_function=custom_collate_fn,
+        shuffle=True,
+        n_workers=1,
+    )
+    datamodule.setup("predict")
+    datamodule.setup("fit")
+
+    test_net = LightingCenterNNormalsNet.load_from_checkpoint(MODEL_PATH)
+
+    test_batch = next(iter(datamodule.train_dataloader()))
+
+    trainer = lightning.Trainer(enable_progress_bar=True, logger=False, overfit_batches=10) # , fast_dev_run=True
+    trainer.fit(test_net, datamodule)
+    exit(0)
+    print(f'Training dataset has: {len(datamodule.train_dataset) = } batches')
+    train_dataloader = datamodule.train_dataloader()
+    print(f'Train dataloader has: {len(train_dataloader) = } batches')
+    val_dataloader = datamodule.val_dataloader()
+    print(f'Valid dataloader has: {len(val_dataloader) = } batches')
+
+    predict_dataset = Subset(datamodule.train_dataset, [i for i in range(PREDICT_SAMPLES)])
+    print(f'Predict dataset has: {len(predict_dataset) = } batches')
+    predict_dataloader = DataLoader(predict_dataset, batch_size=BATCH_SIZE,
+                                    collate_fn=COLLATE_FN, num_workers=NUM_WORKERS)
+    print(f'Predict dataloader has: {len(predict_dataloader) = } batches')
+
+    predictions = trainer.predict(test_net, predict_dataloader)
+
+    print(f'Predictions: {len(predictions)}')
+    pr_idx = random.randint(0, len(predictions) - 1)
+    print(f'Taking batch no. {pr_idx}')
+    batch, plane_predictions, axis_discrete_predictions, axis_continue_predictions = predictions[pr_idx]
+
+    torch.set_printoptions(linewidth=200)
+    torch.set_printoptions(precision=3)
+    torch.set_printoptions(sci_mode=False)
+
+    print(f"Batch size: {batch.size}")
+    idx = random.randint(0, batch.size - 1)
+    item = batch.item_list[idx]
+    print(f"Comparing element: {idx} in batch...")
+    gt = item.plane_symmetries
+    pr = plane_predictions[idx][plane_predictions[idx][:, -1].sort(descending=True).indices]
+
+    match_sequence = get_match_sequence_plane_symmetry(pr, gt, item.points, eps=0.01, theta=0.0174533)
+
+    print(f'Ground truth:\n{gt}')
+    print(f'Prediction  :\n{pr}')
+    print(f'Match Sequence: \n{match_sequence}')
+
+    predictions = [(item.points.unsqueeze(0), y_pred.unsqueeze(0), item.plane_symmetries.unsqueeze(0)) for item, y_pred in zip(batch.item_list, plane_predictions)]
+    print("Normal metrics")
+    print("PHC", get_phc(predictions).item())
+    print("MAP", get_mean_average_precision(predictions).item())
+
+    print("Normals matching")
+    print("PHC", get_phc(predictions, eps=1).item())
+    print("MAP", get_mean_average_precision(predictions, eps=1).item())
+
+    print("Center matching")
+    print("PHC", get_phc(predictions, theta=10).item())
+    print("MAP", get_mean_average_precision(predictions, theta=10).item())

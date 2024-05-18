@@ -1,20 +1,13 @@
 import pathlib
 from argparse import ArgumentParser
 
-import lightning
-import torch
-from lightning import Trainer
 import polyscope as ps
+from lightning import Trainer
+from torch.utils.data import DataLoader, Subset
 
-from src.dataset.preprocessing import ComposeTransform, RandomSampler, UnitSphereNormalization
-from src.metrics.mAP import get_mean_average_precision, get_match_sequence
-from src.model.center_n_normals_net import LightingCenterNNormalsNet
-from src.dataset.shrec2023 import SymmetryDataModule, default_symmetry_dataset_collate_fn, \
-    default_symmetry_dataset_collate_fn_list_sym
-from torch.utils.data import Dataset
-from torch.utils.data import random_split, DataLoader, Subset
-from lightning.pytorch.callbacks import EarlyStopping
-
+from src.dataset._scratch_file import SymmetryDataModule, default_symmetry_dataset_collate_fn_list_sym
+from src.metrics.MAP import get_mean_average_precision, get_match_sequence_plane_symmetry
+from src.model._scratch_file import LightingCenterNNormalsNet
 from src.utils.plane import SymmetryPlane
 
 
@@ -49,6 +42,7 @@ def visualize_prediction(pred_planes, input_points, real_planes):
     ps.register_point_cloud("original pcd", input_points.detach().numpy())
 
     for idx, sym_plane in enumerate(original_symmetries):
+        """
         ps.register_surface_mesh(
             f"original_sym_plane_{idx}",
             sym_plane.coords,
@@ -56,8 +50,15 @@ def visualize_prediction(pred_planes, input_points, real_planes):
             enabled=True,
             transparency=0.5
         )
+        """
+        import numpy as np
+        ps.register_curve_network(f"true_axis_{idx}",
+                                  np.array([-1 * sym_plane.normal + sym_plane.point, 1 * sym_plane.normal + sym_plane.point]),
+                                  np.array([[0, 1]])
+                                  )
 
     for idx, sym_plane in enumerate(predicted_symmetries):
+        """
         ps.register_surface_mesh(
             f"predicted_sym_plane_{idx}",
             sym_plane.coords,
@@ -65,6 +66,12 @@ def visualize_prediction(pred_planes, input_points, real_planes):
             enabled=False,
             transparency=0.5
         )
+        """
+        import numpy as np
+        ps.register_curve_network(f"predicted_axis_{idx}",
+                                  np.array([-0.8 * sym_plane.normal + sym_plane.point, 0.8 * sym_plane.normal + sym_plane.point]),
+                                  np.array([[0, 1]])
+                                  )
 
     ps.show()
 
@@ -108,7 +115,7 @@ if __name__ == "__main__":
     pred_y = y_pred[0][y_pred[0][:, -1] > 0.5]
 
     # 548
-    match_sequence = get_match_sequence(pred_y, y_true[0], points[0], 0.01, 0.0174533)
+    match_sequence = get_match_sequence_plane_symmetry(pred_y, y_true[0], points[0], 0.01, 0.0174533)
     print(match_sequence)
 
     visualize_prediction(

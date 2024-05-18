@@ -56,7 +56,7 @@ class TNet(nn.Module):
 
 
 class PointNetEncoder(nn.Module):
-    def __init__(self, use_bn):
+    def __init__(self, use_bn = False):
         super(PointNetEncoder, self).__init__()
 
         self.use_bn = use_bn
@@ -94,8 +94,6 @@ class PointNetEncoder(nn.Module):
                 nn.Conv1d(256, 1024, 1),
             )
 
-
-
     def forward(self, x):
         """
 
@@ -129,7 +127,9 @@ class PointNetEncoder(nn.Module):
 
 if __name__ == "__main__":
     bs, sz = 16, 1024
-    encoder = PointNetEncoder()
+    encoder = PointNetEncoder(use_bn=True)
     mock_x = torch.randn(bs, 3, sz)
     output = encoder.forward(mock_x)
     assert output.shape == (bs, 1024), f"Got {output.shape}"
+    pytorch_total_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad)
+    print(pytorch_total_params)

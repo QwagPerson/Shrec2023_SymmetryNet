@@ -2,24 +2,31 @@ import torch.nn
 from torch import nn
 
 
-class CenterPredictionHead(nn.Module):
-    def __init__(self, input_size, use_bn):
+class PredictionHead(nn.Module):
+    def __init__(self, input_size, output_size, use_bn=False):
         super().__init__()
         self.use_bn = use_bn
         self.input_size = input_size
+        self.output_size = output_size
         if use_bn:
             self.decoder_head = torch.nn.Sequential(
-                nn.Linear(self.input_size, 256),
+                nn.Linear(input_size, 512),
+                nn.BatchNorm1d(512),
+                nn.LeakyReLU(),
+                nn.Linear(512, 256),
                 nn.BatchNorm1d(256),
                 nn.LeakyReLU(),
-                nn.Linear(256, 3),
+                nn.Linear(256, self.output_size),
             )
         else:
             self.decoder_head = torch.nn.Sequential(
-                nn.Linear(self.input_size, 256),
+                nn.Linear(input_size, 512),
                 nn.LeakyReLU(),
-                nn.Linear(256, 3),
+                nn.Linear(512, 256),
+                nn.LeakyReLU(),
+                nn.Linear(256, self.output_size),
             )
+
 
     def forward(self, x):
         """
