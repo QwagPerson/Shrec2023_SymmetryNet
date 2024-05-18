@@ -138,7 +138,7 @@ class VNPointNetEncoder(nn.Module):
         
         trans_feat = None
         if self.global_feat:
-            return x, trans, trans_feat
+            return x
         else:
             x = x.view(-1, 1024, 1).repeat(1, 1, N)
             return torch.cat([x, pointfeat], 1), trans, trans_feat
@@ -157,10 +157,10 @@ if __name__ == "__main__":
     x = x.transpose(2, 1)
     x2 = x2.transpose(2, 1)
 
-    out, _, _ = model.forward(x)
+    out= model.forward(x)
     print(out.shape)
 
-    out2, _, _ = model.forward(x)
+    out2 = model.forward(x)
     print(out2.shape)
 
     print(out.isclose(out2).all())
