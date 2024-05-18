@@ -136,11 +136,11 @@ class VNMaxPool(nn.Module):
         '''
         x: point features of shape [B, N_feat, 3, N_samples, ...]
         '''
+        # MODIFIED https://github.com/FlyingGiraffe/vnn/issues/11
         d = self.map_to_dir(x.transpose(1,-1)).transpose(1,-1)
         dotprod = (x*d).sum(2, keepdims=True)
-        idx = dotprod.max(dim=-1, keepdim=False)[1]
-        index_tuple = torch.meshgrid([torch.arange(j) for j in x.size()[:-1]]) + (idx,)
-        x_max = x[index_tuple]
+        sm = torch.nn.functional.softmax(dotprod*100., dim=-1) #100 or any large value to scale the input so that the max value dominates over others
+        x_max = (x*sm).sum(-1)
         return x_max
 
 

@@ -125,7 +125,6 @@ class VNPointNetEncoder(nn.Module):
             x_global = self.fstn(x).unsqueeze(-1).repeat(1,1,1,N)
             x = torch.cat((x, x_global), 1)
         
-        pointfeat = x
         x = self.conv2(x)
         x = self.bn3(self.conv3(x))
         
@@ -136,19 +135,15 @@ class VNPointNetEncoder(nn.Module):
         
         x = torch.max(x, -1, keepdim=False)[0]
         
-        trans_feat = None
-        if self.global_feat:
-            return x
-        else:
-            x = x.view(-1, 1024, 1).repeat(1, 1, N)
-            return torch.cat([x, pointfeat], 1), trans, trans_feat
+        return x
+
 
 
 if __name__ == "__main__":
     batches = 2
     n_points = 64
 
-    model = VNPointNetEncoder()
+    model = VNPointNetEncoder(feature_transform=False) # Make feat trans from work <- todo
     trot = RotateAxisAngle(angle=torch.rand(batches)*360, axis="Z", degrees=True)
 
     x = torch.rand((batches, n_points, 3))
@@ -157,10 +152,34 @@ if __name__ == "__main__":
     x = x.transpose(2, 1)
     x2 = x2.transpose(2, 1)
 
+    label = torch.zeros((batches, 1023))
+    label[:, 0] = 1
+
     out= model.forward(x)
     print(out.shape)
+
+    optimizer = torch.optim.Adam(model.parameters())
+    optimizer.zero_grad()
+
+    loss_fn = nn.CrossEntropyLoss()
+    loss = loss_fn(out, label)
+    loss.backward()
+
+    for name, param in model.named_parameters():
+        if param.grad is None:
+            print(name)
+
+    optimizer.step()
+
+
+
 
     out2 = model.forward(x)
     print(out2.shape)
 
-    print(out.isclose(out2).all())
+    # Rotational invariance (COOLEST)
+    print(out.isclose(out2).all(), "same output?")
+    print(x.isclose(x2).all(), "same pcd?")
+
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(pytorch_total_params)

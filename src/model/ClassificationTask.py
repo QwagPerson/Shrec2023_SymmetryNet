@@ -9,6 +9,7 @@ from src.dataset.transforms.UnitSphereNormalization import UnitSphereNormalizati
 from src.model.encoders.PCT import PCT
 from src.model.encoders.PointMLP import PointMLPEncoderXL, PointMLPEncoder
 from src.model.encoders.PointNetPlusPlusEncoder import PointNetPlusPlusEncoder
+from src.model.encoders.VNPointNetEncoder import VNPointNetEncoder
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 
 
@@ -33,6 +34,9 @@ class ClassificationModel(nn.Module):
         elif encoder == "PointMLPXL":
             self.encoder = PointMLPEncoderXL(self.n_points)
             self.encoder_output_size = 1024
+        elif encoder == "VNPointNet":
+            self.encoder = VNPointNetEncoder()
+            self.encoder_output_size = 1023
         else:
             raise ValueError("Encoder not found")
 
