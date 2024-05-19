@@ -146,7 +146,7 @@ model:
   encoder: pointnet
   n_points: 8192
 data:
-  dataset_path: /data/gsanteli/sym-10k-xz-split-class-noparallel
+  dataset_path: /data/sym-10k-xz-split-class-noparallel
   predict_data_path: /path/to/predict_data
   does_predict_has_ground_truths: false
   batch_size: 32
