@@ -27,7 +27,7 @@ if __name__ == "__main__":
     #compose_transform = ComposeTransform([scaler])
 
     SHAPE_TYPE = {
-        #"astroid": 0,
+        "astroid": 0,
         "citrus": 1,
         "cylinder": 2,
         "egg_keplero": 3,
