@@ -184,6 +184,13 @@ def calculate_metrics(match_sequence, groundtruth_total):
 
     if match_amount != 0:
         map_ = map_ / match_amount
+    elif match_sequence.shape[0] == 0 and groundtruth_total == 0:
+        # Case when the model left 0 metrics with confidence > confidence_threshold
+        # And there are no groundtruths so map =1.0 and PHC=1.0 i guess? This could
+        # Make interpretation harder but ok
+        map_ = 1.0
+        phc = 1.0
+
 
     return map_, phc, pr_curve
 
