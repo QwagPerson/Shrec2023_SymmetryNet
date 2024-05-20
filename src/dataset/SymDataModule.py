@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 import lightning
 from torch.utils.data import DataLoader
@@ -20,9 +20,11 @@ class SymDataModule(lightning.LightningDataModule):
             self,
             dataset_path: str = "/path/to/dataset",
             predict_data_path: str = "/path/to/predict_data",
-            does_predict_has_ground_truths: bool = False,
             batch_size: int = 2,
             transform: AbstractTransform = IdentityTransform(),
+            shape_excluded: Optional[List[str]] = None,
+            perturbation_excluded: Optional[List[str]] = None,
+            does_predict_has_ground_truths: bool = False,
             collate_function: Callable = custom_collate_fn,
             shuffle: bool = True,
             n_workers: int = 1,
@@ -48,32 +50,42 @@ class SymDataModule(lightning.LightningDataModule):
         self.collate_function = collate_function
         self.shuffle = shuffle
         self.n_workers = n_workers
+        self.shape_excluded = [] if shape_excluded is None else shape_excluded
+        self.perturbation_excluded = [] if perturbation_excluded is None else perturbation_excluded
 
     def setup(self, stage: str):
         if stage == "fit":
             self.train_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'train',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                shape_excluded=self.shape_excluded,
+                perturbation_excluded=self.perturbation_excluded,
             )
             self.valid_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'valid',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                shape_excluded=self.shape_excluded,
+                perturbation_excluded=self.perturbation_excluded,
             )
 
         if stage == "test":
             self.test_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'test',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                shape_excluded=self.shape_excluded,
+                perturbation_excluded=self.perturbation_excluded,
             )
 
         if stage == "predict":
             self.predict_dataset = SymDataset(
                 data_source_path=self.predict_data_path,
                 transform=self.transform,
-                has_ground_truth=self.does_predict_has_ground_truths
+                has_ground_truth=self.does_predict_has_ground_truths,
+                shape_excluded=self.shape_excluded,
+                perturbation_excluded=self.perturbation_excluded,
             )
 
     def train_dataloader(self):

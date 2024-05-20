@@ -3,11 +3,10 @@ import pathlib
 from argparse import ArgumentParser
 
 import numpy as np
-import torch
 from lightning import Trainer
 
-from src.model._scratch_file import LightingCenterNNormalsNet
-from src.dataset._scratch_file import SymmetryDataModule
+from src.dataset.SymDataModule import SymDataModule
+from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 
 
 def save_prediction(batch, y_pred, path):
@@ -46,7 +45,7 @@ if __name__ == "__main__":
     N_WORKERS = args["n_workers"]
 
     model = LightingCenterNNormalsNet.load_from_checkpoint(MODEL_PATH)
-    data_module = SymmetryDataModule(
+    data_module = SymDataModule(
         test_data_path=DATA_PATH,
         predict_data_path=DATA_PATH,
         does_predict_has_ground_truths=True,
