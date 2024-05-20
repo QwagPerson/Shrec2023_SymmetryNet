@@ -63,7 +63,17 @@ class SimpleMatcher:
                 assignments_y_true_2_y_pred.append(None)
             else:
                 c_hat, match_y_pred, match_y_true, pred2true, true2pred = self.get_optimal_assignment_aux(points[idx], y_pred[idx], y_true[idx])
+                #print(points[idx], y_pred[idx], y_true[idx], self.method)
+                #print(type(points[idx]))
+                #print(type(y_pred[idx]))
+                #print(type(y_true[idx]))
+                #print(type(self.method))
+                #c_hat_old, match_y_pred_old = self.get_optimal_assignment_old(points[idx], y_pred[idx], y_true[idx], self.method)
                 c_hats.append(c_hat)
+                #print(f'c_hat\n{c_hat}')
+                #print(f'c_hat_old\n{c_hat_old}')
+                #print(f'match_y_pred\n{match_y_pred}')
+                #print(f'match_y_pred_old\n{match_y_pred_old}')
                 matches_y_pred.append(match_y_pred)
                 matches_y_true.append(match_y_true)
                 assignments_y_pred_2_y_true.append(pred2true)
@@ -72,3 +82,42 @@ class SimpleMatcher:
 
         return c_hats, matches_y_pred, matches_y_true, assignments_y_pred_2_y_true, assignments_y_true_2_y_pred
 
+    '''
+    =========================================================
+    =========================================================
+    =========================================================
+    '''
+
+    def create_onehot_old(self, row_idx, length, device="cpu"):
+        """
+    
+        :param device:
+        :param row_idx: Array of index of matches
+        :param length: length of the vector
+        :return:
+        """
+        out = torch.zeros(length, device=device)
+        out[row_idx] = 1
+        return out
+    
+    
+    def get_optimal_assignment_old(self, points, y_pred, y_true, method):
+        """
+    
+        :param method:
+        :param points: N x 3
+        :param y_pred: M x 7
+        :param y_true: K x 6
+        :return:
+        """
+        m = y_pred.shape[0]
+        cost_matrix = method(points, y_pred.detach().clone(), y_true)
+        row_id, col_id = linear_sum_assignment(cost_matrix.cpu().detach().numpy())
+        c_hat = self.create_onehot_old(row_id, m, device=points.device)
+        y_pred = y_pred[row_id, :]
+        return c_hat, y_pred
+    
+    
+    
+    
+    

@@ -124,6 +124,9 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
     def _process_prediction(self, batch, sym_pred, sym_true, loss_fun, sym_tag, step_tag, losses_tags):
         c_hat, match_pred, match_true, pred2true, true2pred = self.matcher.get_optimal_assignment(batch.get_points(),
                                                                                                   sym_pred, sym_true)
+
+        #c_hat_old, y_pred_old = self.matcher.get_optimal_assignment_old(batch.get_points(), sym_pred, sym_true)
+
         bundled_predictions = (batch, sym_pred, c_hat, match_pred, match_true)
         loss, others = loss_fun(bundled_predictions)
 
