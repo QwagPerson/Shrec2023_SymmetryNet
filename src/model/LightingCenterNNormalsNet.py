@@ -91,7 +91,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         ]
         if continue_rotational_loss == "default":
             self.continue_rotational_loss = RotationalSymmetryLoss(
-                confidence_weight=1.0, confidence_loss=ConfidenceLoss(),
+                confidence_weight=1.0, confidence_loss=ConfidenceLoss(we),
                 normal_weight=1.0, normal_loss=NormalLoss(),
                 distance_weight=1.0, distance_loss=DistanceLoss(),
                 rotational_symmetry_distance_weight=0.1,

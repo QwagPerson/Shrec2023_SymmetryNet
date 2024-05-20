@@ -14,7 +14,7 @@ from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 
 if __name__ == "__main__":
     DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/"  # "/data/temp"#
-    MODEL_PATH = "/home/gustavo_santelices/Documents/Universidad/2024-1/simetrias/models/center_n_normals_only_plane/epoch=5_plane_train_map_epoch=0.143_d_axis_train_loss_epoch=0.000_c_axis_train_loss_epoch=0.000.ckpt"
+    MODEL_PATH = "/home/gustavo_santelices/Documents/Universidad/2024-1/simetrias/models/aa/epoch=9_plane_train_map_epoch=0.156_plane_train_loss_epoch=0.34068.ckpt"
     BATCH_SIZE = 2
     PREDICT_SAMPLES = 4
     SAMPLE_SIZE = 14_440
@@ -91,60 +91,92 @@ if __name__ == "__main__":
     item = batch.item_list[idx]
     print(f"Comparing element: {idx} in batch...")
     gt = item.plane_symmetries
+
+    c_hat, match_pred, match_true, _, _ = test_net.matcher.get_optimal_assignment(batch.get_points(), plane_predictions,
+                                                                                  batch.get_plane_syms())
+    bundled_predictions = (batch, plane_predictions, c_hat, match_pred, match_true)
+    loss, others = test_net.plane_loss(bundled_predictions)
+
     pr = plane_predictions[idx][plane_predictions[idx][:, -1].sort(descending=True).indices]
     pr = pr[pr[:, -1] > 0.1]
+
+
+
     matches = get_match_sequence_plane_symmetry(item.points, plane_predictions[idx], item.plane_symmetries, {
         "eps": 0.01,
         "theta": 0.00015230484,
-        "confidence_threshold": 0.1,
+        "confidence_threshold": 0.0,
     })
+
     print(f'Ground truth:\n{gt}')
     print(f'Prediction  :\n{pr}')
-    print(f'Matches  :\n{matches}')
 
     map_, phc, _ = calculate_metrics_from_predictions(eval_predictions, get_match_sequence_plane_symmetry, {
         "eps": 0.01,
         "theta": 0.00015230484,
-        "confidence_threshold": 0.1,
+        "confidence_threshold": 0.0,
     })
 
     print("Normal metrics")
     print("PHC", map_.item())
     print("MAP", phc.item())
+    print(f'Matches  :\n{matches}')
+
 
     map_, phc, _ = calculate_metrics_from_predictions(eval_predictions, get_match_sequence_plane_symmetry, {
         "eps": 0.01,
         "theta": 0.00137046524,
-        "confidence_threshold": 0.1,
+        "confidence_threshold": 0.0,
+    })
+
+    matches = get_match_sequence_plane_symmetry(item.points, plane_predictions[idx], item.plane_symmetries, {
+        "eps": 0.01,
+        "theta": 0.00137046524,
+        "confidence_threshold": 0.0,
     })
 
     print("angle 3° metrics")
     print("PHC", map_.item())
     print("MAP", phc.item())
+    print(f'Matches  :\n{matches}')
 
     map_, phc, _ = calculate_metrics_from_predictions(eval_predictions, get_match_sequence_plane_symmetry, {
         "eps": 0.01,
         "theta": 0.0038053019,
         "confidence_threshold": 0.1,
     })
+    matches = get_match_sequence_plane_symmetry(item.points, plane_predictions[idx], item.plane_symmetries, {
+        "eps": 0.01,
+        "theta": 0.00137046524,
+        "confidence_threshold": 0.0,
+    })
 
     print("angle 5° metrics")
     print("PHC", map_.item())
     print("MAP", phc.item())
+    print(f'Matches  :\n{matches}')
+
 
     map_, phc, _ = calculate_metrics_from_predictions(eval_predictions, get_match_sequence_plane_symmetry, {
         "eps": 1,
         "theta": 0.00015230484,
         "confidence_threshold": 0.1,
     })
+    matches = get_match_sequence_plane_symmetry(item.points, plane_predictions[idx], item.plane_symmetries, {
+        "eps": 1,
+        "theta": 0.00015230484,
+        "confidence_threshold": 0.0,
+    })
     print("Normals matching")
     print("PHC", map_.item())
     print("MAP", phc.item())
+    print(f'Matches  :\n{matches}')
+
 
     map_, phc, _ = calculate_metrics_from_predictions(eval_predictions, get_match_sequence_plane_symmetry, {
         "eps": 0.01,
         "theta": 6.28,
-        "confidence_threshold": 0.1,
+        "confidence_threshold": 0.0,
     })
 
     print("Center matching")
