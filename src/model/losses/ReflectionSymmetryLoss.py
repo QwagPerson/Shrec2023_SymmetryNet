@@ -44,6 +44,11 @@ class ReflectionSymmetryLoss(nn.Module):
             curr_conf_true = plane_c_hats[b_idx]
             curr_conf_pred = plane_predictions[b_idx, :, -1]
             conf_loss = self.confidence_weight * self.confidence_loss(curr_conf_pred, curr_conf_true)
+            print(f'curr_y_pred\n{curr_y_pred}')
+            print(f'curr_y_true\n{curr_y_true}')
+            print(f'curr_conf_pred\n{curr_conf_pred}')
+            print(f'curr_conf_true\n{curr_conf_true}')
+            print(f'conf_loss\n{conf_loss}')
 
             if curr_y_true is None:
                 loss_matrix[b_idx, 0] = conf_loss

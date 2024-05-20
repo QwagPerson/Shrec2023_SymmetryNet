@@ -17,6 +17,18 @@ from src.model.losses.RotationalSymmetryLoss import RotationalSymmetryLoss
 from src.model.matchers.SimpleMatcher import SimpleMatcher
 from src.model.matchers.cost_matrix_methods import calculate_cost_matrix_normals
 
+'''
+def calculate_loss(
+        batch,
+        y_pred,
+        cost_matrix_method=calculate_cost_matrix_normals,
+        weights=torch.tensor([1.0, 0.1, 1.0, 1.0]),
+        show_losses=True,
+):
+'''
+
+from src.model.losses.discrete_prediction_loss import calculate_loss
+
 
 class LightingCenterNNormalsNet(lightning.LightningModule):
     def __init__(self,
@@ -125,8 +137,6 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         c_hat, match_pred, match_true, pred2true, true2pred = self.matcher.get_optimal_assignment(batch.get_points(),
                                                                                                   sym_pred, sym_true)
 
-        #c_hat_old, y_pred_old = self.matcher.get_optimal_assignment_old(batch.get_points(), sym_pred, sym_true)
-
         bundled_predictions = (batch, sym_pred, c_hat, match_pred, match_true)
         loss, others = loss_fun(bundled_predictions)
 
@@ -200,6 +210,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                 "plane", step_tag, self.plane_loss_tag
             )
             loss += plane_loss * self.w1
+            print(f'NEW plane loss: {plane_loss}')
+            old_loss = calculate_loss([None, points, batch.get_plane_syms(), None], plane_predictions, cost_matrix_method=calculate_cost_matrix_normals, weights=torch.tensor([1.0, 0.1, 1.0, 1.0]), show_losses=True)
+            print(f'OLD plane loss: {old_loss}')
+            loss += old_loss
 
         if axis_discrete_predictions is not None:
             discrete_axis_loss, map_discrete_axis, phc_discrete_axis = self._process_prediction(
