@@ -26,4 +26,4 @@ class NormalLoss(nn.Module):
             if not true_normalized:
                 warnings.warn("Got n_true with normals that are not normalized!")
 
-        return REDUCTIONS[self.reduction](torch.abs(1 - torch.linalg.vecdot(n_true, n_pred)))
+        return REDUCTIONS[self.reduction](1 - torch.abs(torch.linalg.vecdot(n_true, n_pred)))
