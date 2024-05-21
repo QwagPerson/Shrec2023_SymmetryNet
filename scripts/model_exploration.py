@@ -273,3 +273,41 @@ if __name__ == "__main__":
     torch.set_printoptions(precision=3)
     torch.set_printoptions(sci_mode=False)
     print(distribution)
+
+    print("==============================")
+    print("Random example")
+    print("==============================")
+    batch = next(iter(dataloader))
+    batch.device = DEVICE
+    model.matcher.device = DEVICE
+
+    item = batch.get_item(0)
+    shape_type = SHAPE_TYPE[item.shape_type]
+    perturbation_type = PERTURBATION_TYPE[item.perturbation_type]
+    ###################
+    # Forward pass
+    ###################
+    points = torch.stack(batch.get_points())
+    points = torch.transpose(points, 1, 2).float()
+    plane_predictions, axis_discrete_predictions, axis_continue_predictions = model.net.forward(points)
+    pr = plane_predictions[0][plane_predictions[0][:, -1].sort(descending=True).indices]
+
+    ###################
+    # Plane
+    ###################
+    curr_metrics, curr_heads = run_prediction(
+        model, batch, plane_predictions, batch.get_plane_syms(),
+        model.plane_loss, get_match_sequence_plane_symmetry
+    )
+    curr_matches = get_match_sequence_plane_symmetry(points, plane_predictions[0], batch.get_plane_syms()[0], metric_param_dict)
+    torch.set_printoptions(linewidth=200)
+    torch.set_printoptions(precision=3)
+    torch.set_printoptions(sci_mode=False)
+    print("GT:")
+    print(batch.get_plane_syms())
+    print("PR:")
+    print(pr)
+    print("Matches:")
+    print(curr_matches)
+
+
