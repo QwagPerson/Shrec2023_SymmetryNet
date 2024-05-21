@@ -141,7 +141,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         loss, others = loss_fun(bundled_predictions)
 
         eval_predictions = [(batch.get_points(), sym_pred, sym_true)]
-        map = get_mean_average_precision(eval_predictions)
+        _map = get_mean_average_precision(eval_predictions)
         phc = get_phc(eval_predictions)
 
         if self.print_losses or True:
@@ -190,10 +190,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             self._log(others[idx], f"loss_{losses_tags[idx]}", sym_tag, step_tag, batch.size)
 
         self._log(loss, "loss", sym_tag, step_tag, batch.size, prog_bar=True)
-        self._log(map, "map", sym_tag, step_tag, batch.size, prog_bar=True)
+        self._log(_map, "map", sym_tag, step_tag, batch.size, prog_bar=True)
         self._log(phc, "phc", sym_tag, step_tag, batch.size)
 
-        return loss, map, phc
+        return loss, _map, phc
 
     def _step(self, batch, step_tag):
         batch.device = self.device
@@ -209,7 +209,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                 batch, plane_predictions, batch.get_plane_syms(), self.plane_loss,
                 "plane", step_tag, self.plane_loss_tag
             )
-            loss += plane_loss * self.w1
+            #loss += plane_loss * self.w1
             print(f'NEW plane loss: {plane_loss}')
             old_loss = calculate_loss([None, points, batch.get_plane_syms(), None], plane_predictions, cost_matrix_method=calculate_cost_matrix_normals, weights=torch.tensor([1.0, 0.1, 1.0, 1.0]), show_losses=True)
             print(f'OLD plane loss: {old_loss}')
