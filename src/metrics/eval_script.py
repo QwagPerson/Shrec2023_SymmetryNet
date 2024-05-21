@@ -238,7 +238,7 @@ if __name__ == "__main__":
     gt = 4
     predictions = [
         [
-            torch.rand((bs, 10, 3)), torch.rand((bs, h, 7)), [torch.rand(gt, 7) for _ in range(bs)]
+            torch.rand((bs, 10, 3)), torch.rand((bs, h, 7)), [torch.rand(gt, 6) for _ in range(bs)]
         ] for _ in range(10)
     ]
     pdict = {
@@ -249,6 +249,13 @@ if __name__ == "__main__":
     }
     end = calculate_metrics_from_predictions(predictions, get_match_sequence_continue_rotational_symmetry, pdict)
     print(end)
+
+    gt = torch.tensor([[     0.000,      1.000,      0.000,     -0.002,      0.001,     -0.000]])
+    pr = torch.tensor([[    -0.005,      1.000,      0.008,      0.000,      0.000,      0.002,      0.981]])
+
+    gt = SymPlane.from_tensor(gt[0])
+    pr = SymPlane.from_tensor(pr[0, 0:6])
+    gt.is_close(pr, angle_threshold=0.00015230484, distance_threshold=1)
 
 
 def get_match_sequence_rotational_symmetry():

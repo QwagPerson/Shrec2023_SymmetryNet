@@ -303,11 +303,16 @@ if __name__ == "__main__":
     torch.set_printoptions(linewidth=200)
     torch.set_printoptions(precision=3)
     torch.set_printoptions(sci_mode=False)
+    print("Filename:", item.filename)
     print("GT:")
     print(batch.get_plane_syms())
     print("PR:")
     print(pr)
     print("Matches:")
     print(curr_matches)
-
+    print("MAP:", curr_metrics[0])
+    print("PHC:", curr_metrics[1])
+    for loss_idx, loss_text in enumerate(["total"]+model.plane_loss_tag):
+        loss = curr_metrics[2 + loss_idx]
+        print(f"{f'Plane Symmetry {loss_text} loss:':<45}{loss:.3f}")
 
