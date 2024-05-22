@@ -14,7 +14,7 @@ from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 
 if __name__ == "__main__":
     DATA_PATH = "/data/sym-10k-xz-split-class-noparallel/"  # "/data/temp"#
-    MODEL_PATH = "/home/gustavo_santelices/Documents/Universidad/2024-1/simetrias/models/aa/epoch=9_plane_train_map_epoch=0.156_plane_train_loss_epoch=0.34068.ckpt"
+    MODEL_PATH = "/home/gustavo_santelices/Documents/Universidad/2024-1/simetrias/models/version_3/checkpoints/epoch=61_plane_train_map_epoch=0.351_plane_train_loss_epoch=0.19118.ckpt"
     BATCH_SIZE = 2
     PREDICT_SAMPLES = 4
     SAMPLE_SIZE = 14_440

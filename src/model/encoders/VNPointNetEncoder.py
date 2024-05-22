@@ -1,6 +1,5 @@
 import torch.nn.parallel
 import torch.utils.data
-from pytorch3d.transforms import RotateAxisAngle
 
 from src.model.encoders.vn_layers import *
 
@@ -144,13 +143,11 @@ if __name__ == "__main__":
     n_points = 64
 
     model = VNPointNetEncoder(feature_transform=False) # Make feat trans from work <- todo
-    trot = RotateAxisAngle(angle=torch.rand(batches)*360, axis="Z", degrees=True)
 
     x = torch.rand((batches, n_points, 3))
-    x2 = trot.transform_points(x)
 
     x = x.transpose(2, 1)
-    x2 = x2.transpose(2, 1)
+    x2 = x
 
     label = torch.zeros((batches, 1023))
     label[:, 0] = 1

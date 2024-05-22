@@ -10,10 +10,10 @@ import lightning as L
 from src.dataset.SymDataModule import SymDataModule
 from src.dataset.SymDatasetItem import SHAPE_TYPE, SHAPE_TYPE_AMOUNT, PERTURBATION_TYPE, PERTURBATION_TYPE_AMOUNT
 from src.metrics.eval_script import calculate_metrics_from_predictions, get_match_sequence_plane_symmetry, \
-    get_match_sequence_discrete_rotational_symmetry, get_match_sequence_continue_rotational_symmetry
+    get_match_sequence_discrete_rotational_symmetry, get_match_sequence_continue_rotational_symmetry, \
+    get_diagonals_length
 from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
-
-
+from src.utils.plane import SymPlane
 
 SYM_TYPES = {"plane": 0, "d_axis": 1, "c_axis": 2}
 METRICS_TAGS = {"map": 0, "phc": 1, "loss": 2}
@@ -299,6 +299,7 @@ if __name__ == "__main__":
         model, batch, plane_predictions, batch.get_plane_syms(),
         model.plane_loss, get_match_sequence_plane_symmetry
     )
+    points = item.points
     curr_matches = get_match_sequence_plane_symmetry(points, plane_predictions[0], batch.get_plane_syms()[0], metric_param_dict)
     torch.set_printoptions(linewidth=200)
     torch.set_printoptions(precision=3)
@@ -315,4 +316,3 @@ if __name__ == "__main__":
     for loss_idx, loss_text in enumerate(["total"]+model.plane_loss_tag):
         loss = curr_metrics[2 + loss_idx]
         print(f"{f'Plane Symmetry {loss_text} loss:':<45}{loss:.3f}")
-
