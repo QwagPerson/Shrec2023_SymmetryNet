@@ -26,6 +26,7 @@ class SymDataModule(lightning.LightningDataModule):
             collate_function: Callable = custom_collate_fn,
             shuffle: bool = True,
             n_workers: int = 1,
+            old_dataset: bool = False,
     ):
         """
         Data module designed to load Shrec2023 symmetry dataset.
@@ -48,32 +49,37 @@ class SymDataModule(lightning.LightningDataModule):
         self.collate_function = collate_function
         self.shuffle = shuffle
         self.n_workers = n_workers
+        self.old_dataset = old_dataset
 
     def setup(self, stage: str):
         if stage == "fit":
             self.train_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'train',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                old_dataset=self.old_dataset,
             )
             self.valid_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'valid',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                old_dataset=self.old_dataset,
             )
 
         if stage == "test":
             self.test_dataset = SymDataset(
                 data_source_path=Path(self.dataset_path) / 'test',
                 transform=self.transform,
-                has_ground_truth=True
+                has_ground_truth=True,
+                old_dataset=self.old_dataset,
             )
 
         if stage == "predict":
             self.predict_dataset = SymDataset(
                 data_source_path=self.predict_data_path,
                 transform=self.transform,
-                has_ground_truth=self.does_predict_has_ground_truths
+                has_ground_truth=self.does_predict_has_ground_truths,
+                old_dataset=self.old_dataset,
             )
 
     def train_dataloader(self):

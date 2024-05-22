@@ -79,6 +79,10 @@ class ReflectionSymmetryLoss(nn.Module):
             torch.set_printoptions  (linewidth=200)
             torch.set_printoptions  (precision=3)
             torch.set_printoptions  (sci_mode=False)
+            conf_loss                    = loss_matrix[b_idx, 0]
+            normal_loss                  = loss_matrix[b_idx, 1]
+            distance_loss                = loss_matrix[b_idx, 2]
+            reflection_symmetry_distance = loss_matrix[b_idx, 3]
             print(f"\n")
             print(f"REF conf_loss    : {(conf_loss / total_loss).item():.2f} | {conf_loss.item()}")
             print(f"REF sde_loss     : {(reflection_symmetry_distance / total_loss).item():.2f} | {reflection_symmetry_distance.item()}")

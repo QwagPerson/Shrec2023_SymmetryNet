@@ -118,6 +118,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.log(f"{sym_tag}_{step_tag}_{metric_name}", metric_val, on_step=on_step, on_epoch=on_epoch,
                  prog_bar=prog_bar, batch_size=batch_size, sync_dist=sync_dist)
 
+    def sort_prediction(self, pred):
+        sorted_indices = pred[:, -1].sort(descending=True)
+        return pred[sorted_indices[1]]
+
     def _process_prediction(self, batch, sym_pred, sym_true, loss_fun, sym_tag, step_tag, losses_tags):
         c_hat, match_pred, match_true, pred2true, true2pred = self.matcher.get_optimal_assignment(batch.get_points(),
                                                                                                   sym_pred, sym_true)
@@ -133,13 +137,16 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             torch.set_printoptions  (precision=3)
             torch.set_printoptions  (sci_mode=False)
             print(f"Points shape {batch.get_points()[0].shape}")
-            print(f"Y_true shape {len(sym_true)} - {sym_true[0].shape = }")
-            print(f"Y_pred shape {len(sym_pred)} - {sym_pred[0].shape = }")
+            # this is another nice paranormal phenomenon that I'll dig into tomorrow (always happens with train/egg_keplero/039942-egg_keplero-gaussian-sym.txt)
+            if sym_true is not None and sym_pred is not None and sym_true[0] is not None and sym_pred[0] is not None:
+                print(f"Y_true shape {len(sym_true)} - {sym_true[0].shape = }")
+                print(f"Y_pred shape {len(sym_pred)} - {sym_pred[0].shape = }")
 
-            print(f"Y_true:\n{sym_true[0]}\n")
-            print(f"Y_pred:\n{sym_pred[0]}\n")
-            print(f"Loss  : {loss}\n")
-            print(f"Others: {others}\n")
+                print(f"Y_true:\n{sym_true[0]}\n")
+                print(f"Y_pred (truncated):\n{self.sort_prediction(sym_pred[0])[:sym_true[0].shape[0]]}\n")
+                print(f"Y_pred:\n{self.sort_prediction(sym_pred[0])}\n")
+                print(f"Loss  : {loss}\n")
+                print(f"Others: {others}\n")
 
             if batch.size > 1:
                 for b_idx in range(batch.size):

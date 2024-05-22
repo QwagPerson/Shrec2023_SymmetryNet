@@ -22,6 +22,7 @@ class SymDataset(Dataset):
             data_source_path: str = "path/to/dataset/split",
             transform: AbstractTransform = IdentityTransform(),
             has_ground_truth: bool = True,
+            old_dataset: bool = False,
             debug=False
     ):
         """
@@ -34,7 +35,7 @@ class SymDataset(Dataset):
         self.transform = transform
         self.has_ground_truth = has_ground_truth
         self.debug = debug
-        self.old_dataset = True
+        self.old_dataset = old_dataset
         self.moar_debug = False
 
         if self.debug:
@@ -91,7 +92,7 @@ class SymDataset(Dataset):
             axis_discrete_symmetries).float()
 
         if self.debug:
-            print(f'Parsed file at: {filename}')
+            print(f'Parsed file: {filename}')
             formatted_print = lambda probably_tensor, text: print(f'\t No {text} found.') if probably_tensor is None \
                 else print(f'\tGot {probably_tensor.shape[0]} {text}.')
             formatted_print(planar_symmetries, "Plane symmetries")
@@ -99,13 +100,17 @@ class SymDataset(Dataset):
             formatted_print(axis_continue_symmetries, "Continue axis symmetries")
 
         if self.moar_debug:
-            print(f'{planar_symmetries.shape = }')
-            print(f'{planar_symmetries = }')
+            if planar_symmetries is not None:
+                print(f'{planar_symmetries.shape = }')
+                print(f'{planar_symmetries = }')
+            else:
+                print(f'{planar_symmetries = } SHOULD NEVER BE NONE!!!!!!!!!!!!!!!!!!!!!!!!!')
             if axis_discrete_symmetries is not None:
                 print(f'{axis_discrete_symmetries.shape = }')
                 print(f'{axis_discrete_symmetries = }')
+            print(f'{axis_continue_symmetries = }')
             if axis_continue_symmetries is not None:
-                print(f'{axis_continue_symmetries.shape = }')
+                #print(f'{axis_continue_symmetries.shape = }')
                 print(f'{axis_continue_symmetries = }')
         '''
         print(f'{axis_discrete_symmetries.shape = }')
@@ -180,7 +185,8 @@ class SymDataset(Dataset):
             fname.stem,
             idx, points.float(),
             planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries,
-            transform_used
+            transform_used,
+            self.old_dataset
         )
 
         return dataset_item

@@ -41,13 +41,18 @@ class SymDatasetItem:
             axis_continue_symmetries: Optional[torch.tensor],
             axis_discrete_symmetries: Optional[torch.tensor],
             transform: AbstractTransform,
+            old_dataset: bool = False,
     ):
         self.filename = filename
-        #self.shape_type = filename.split("-")[1]
-        self.shape_type = -1		# no label in the old dataset, sorry
-        #self.perturbation_type = filename.split("-")[2]
-        self.perturbation_type = -1	# and no ancillary info...
         self.transform = transform
+        self.old_dataset = old_dataset
+
+        if self.old_dataset:
+            self.shape_type = -1		# no label in the old dataset, sorry
+            self.perturbation_type = -1		# and no ancillary info...
+        else:
+            self.shape_type = filename.split("-")[1]
+            self.perturbation_type = filename.split("-")[2]
 
         self.idx = idx
         self.points = points
@@ -77,12 +82,12 @@ class SymDatasetItem:
         )
 
     def get_shape_type_classification_label(self, device="cpu"):
-        '''	# no label in the old dataset, sorry
-        label = torch.zeros(SHAPE_TYPE_AMOUNT, device=device)
-        label[SHAPE_TYPE[self.shape_type]] = 1
-        return label
-        '''
-        return -1
+        if self.old_dataset:	# no label in the old dataset, sorry
+            return -1
+        else:
+            label = torch.zeros(SHAPE_TYPE_AMOUNT, device=device)
+            label[SHAPE_TYPE[self.shape_type]] = 1
+            return label
 
     def __repr__(self):
         str_rep = ""
