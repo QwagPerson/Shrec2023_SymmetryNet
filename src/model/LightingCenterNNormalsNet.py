@@ -220,6 +220,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                 batch, axis_discrete_predictions, batch.get_axis_discrete_syms(), self.discrete_rotational_loss,
                 "d_axis", step_tag, self.discrete_rotational_loss_tag
             )
+            print(f'NEW discrete ROT loss: {discrete_axis_loss}')
             loss += discrete_axis_loss * self.w2
 
         if axis_continue_predictions is not None:
@@ -228,6 +229,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                 "c_axis", step_tag, self.continue_rotational_loss_tag
 
             )
+            print(f'NEW continue ROT loss: {continue_axis_loss}')
             loss += continue_axis_loss * self.w3
 
         return loss
