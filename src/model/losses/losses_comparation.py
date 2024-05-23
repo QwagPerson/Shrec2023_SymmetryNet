@@ -21,7 +21,7 @@ def calculate_cost_matrix_normals(points, y_pred, y_true):
     :param y_true: M x 6
     :return: K x M
     """
-     normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)
+    normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)
     normals_true = torch.nn.functional.normalize(y_true[:, 0:3], dim=1)
 
     return 1 - torch.abs(normals_pred @ normals_true.T)

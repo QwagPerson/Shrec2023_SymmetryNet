@@ -26,5 +26,10 @@ class NormalLoss(nn.Module):
             if not true_normalized:
                 warnings.warn("Got n_true with normals that are not normalized!")
 
-        return REDUCTIONS[self.reduction](
-            1 - torch.abs(torch.linalg.vecdot(n_true, n_pred) / (torch.norm(n_true, dim=1) * torch.norm(n_pred, dim=1))))
+        # 1 - |a.b/(|a||b|))| < 0.00015230484 is good
+        # |a.b/(|a||b|) = cos(angle between a and b)
+        abs_angle = torch.abs(
+            torch.linalg.vecdot(n_true, n_pred) / (torch.norm(n_true, dim=1) * torch.norm(n_pred, dim=1))
+        )
+
+        return REDUCTIONS[self.reduction](1 - abs_angle)

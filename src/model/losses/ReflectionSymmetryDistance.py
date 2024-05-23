@@ -22,7 +22,6 @@ def get_sde(points, pred_plane, true_plane, p=2):
     pred_plane = SymPlane.from_tensor(pred_plane)
     true_plane = SymPlane.from_tensor(true_plane, normalize=True)
 
-
     return torch.norm(
         true_plane.reflect_points(points) - pred_plane.reflect_points(points),
         dim=1, p=p
@@ -97,14 +96,14 @@ class ReflectionSymmetryDistanceNewUNUSED(nn.Module):
 
 
 if __name__ == "__main__":
-    m = 4
-    n = 10
+    m = 6
+    n = 14_440
     points = torch.rand((n, 3))
     y_pred = torch.rand((m, 7))
-    y_true = torch.rand((m, 7))
+    y_true = torch.rand((m, 6))
 
-    normal_pred = y_pred[:, 0:3]
-    normal_true = y_true[:, 0:3]
+    normal_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)
+    normal_true = torch.nn.functional.normalize(y_true[:, 0:3], dim=1)
 
     center_pred = y_pred[:, 3:6]
     center_true = y_true[:, 3:6]
