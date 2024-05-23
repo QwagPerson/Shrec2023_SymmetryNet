@@ -21,9 +21,11 @@ def get_sde(points, pred_plane, true_plane, p=2):
     """
     pred_plane = SymPlane.from_tensor(pred_plane)
     true_plane = SymPlane.from_tensor(true_plane, normalize=True)
+
+
     return torch.norm(
         true_plane.reflect_points(points) - pred_plane.reflect_points(points),
-        dim=0, p=p
+        dim=1, p=p
     ).mean()
 
 

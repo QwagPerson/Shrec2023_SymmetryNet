@@ -16,7 +16,7 @@ class DistanceLoss(nn.Module):
     def forward(self, center_pred, center_true):
         # Should here dim=1?? as Nx3, Nx3 -> N instead of Nx3, Nx3 -> 3
         # IM CHANGIN THIS TODO
-        distances = torch.norm(center_true - center_pred, p=1, dim=0)
+        distances = torch.norm(center_true - center_pred, p=1, dim=1)
         return REDUCTIONS[self.reduction](distances)
 
 

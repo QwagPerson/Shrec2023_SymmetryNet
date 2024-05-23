@@ -63,7 +63,7 @@ class ReflectionSymmetryLoss(nn.Module):
                                             self.reflection_symmetry_distance(
                                                 curr_points,
                                                 curr_normal_pred, curr_normal_true,
-                                                curr_center_pred, curr_normal_true
+                                                curr_center_pred, curr_center_true
                                             )
                                             )
 
@@ -72,5 +72,6 @@ class ReflectionSymmetryLoss(nn.Module):
             loss_matrix[b_idx, 2] = distance_loss
             loss_matrix[b_idx, 3] = reflection_symmetry_distance
 
+        print(loss_matrix)
         loss = torch.sum(loss_matrix) / batch_size
         return loss, loss_matrix.sum(dim=0)

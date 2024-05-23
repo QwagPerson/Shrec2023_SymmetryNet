@@ -21,8 +21,8 @@ def calculate_cost_matrix_normals(points, y_pred, y_true):
     :param y_true: M x 6
     :return: K x M
     """
-    normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3])
-    normals_true = torch.nn.functional.normalize(y_true[:, 0:3])
+     normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)
+    normals_true = torch.nn.functional.normalize(y_true[:, 0:3], dim=1)
 
     return 1 - torch.abs(normals_pred @ normals_true.T)
 
@@ -82,7 +82,8 @@ def get_optimal_assignment(points, y_pred, y_true, method):
     row_id, col_id = linear_sum_assignment(cost_matrix.cpu().detach().numpy())
     c_hat = create_onehot(row_id, m, device=points.device)
     y_pred = y_pred[row_id, :]
-    return c_hat, y_pred
+    y_true = y_true[col_id, :]
+    return c_hat, y_pred, y_true
 
 
 def calculate_angle_loss(y_pred, y_true):
@@ -98,7 +99,7 @@ def calculate_angle_loss(y_pred, y_true):
     # => if n_1 == n_2 => cos(theta) = 1
     # or if n_1 == -n_2 => cos(Theta) = -1
     # Min theta <=> Min 1 - |cos(Theta)| <=> 1 - |n_1 . n_2.T|
-    cos_angle = 1 - torch.abs(normals_true @ normals_pred.T) # M x M
+    cos_angle = 1 - torch.abs(normals_true @ normals_pred.T)  # M x M
     # We take the min of cos_angle because it is expected that the min value is
     # the one corresponding to the assigned plane, this is not a 100% certain but
     # it is expected because this plane was assigned to that true plane because of a reason
@@ -124,7 +125,6 @@ def calculate_distance_loss(y_pred, y_true):
 import torch
 import torch.nn as nn
 
-
 from src.utils.plane import SymPlane
 
 
@@ -132,15 +132,17 @@ def get_sde(points, pred_plane, true_plane, p=2):
     """
     :param points:
     :param pred_plane:
+    print("true", true_plane)
     :param true_plane:
     :param p:
     :return:
     """
     pred_plane = SymPlane.from_tensor(pred_plane)
     true_plane = SymPlane.from_tensor(true_plane, normalize=True)
+
     return torch.norm(
         true_plane.reflect_points(points) - pred_plane.reflect_points(points),
-        dim=0, p=p
+        dim=1, p=p
     ).mean()
 
 
@@ -181,7 +183,7 @@ def calculate_loss_aux(
 
     # c_hat : One-Hot M
     # matched_y_pred : K x 7
-    c_hat, matched_y_pred = get_optimal_assignment(points, y_pred, y_true, cost_matrix_method)
+    c_hat, matched_y_pred, y_true = get_optimal_assignment(points, y_pred, y_true, cost_matrix_method)
 
     confidence_loss = nn.functional.binary_cross_entropy(confidences, c_hat) * weights[0]
 
@@ -194,9 +196,9 @@ def calculate_loss_aux(
     total_loss = confidence_loss + sde_loss + angle_loss + distance_loss
 
     if show_loss_log or True:
-        torch.set_printoptions  (linewidth=200)
-        torch.set_printoptions  (precision=3)
-        torch.set_printoptions  (sci_mode=False)
+        torch.set_printoptions(linewidth=200)
+        torch.set_printoptions(precision=3)
+        torch.set_printoptions(sci_mode=False)
         print(f"conf_loss    : {(confidence_loss / total_loss).item():.2f} | {confidence_loss.item()}")
         print(f"sde_loss     : {(sde_loss / total_loss).item():.2f} | {sde_loss.item()}")
         print(f"angle_loss   : {(angle_loss / total_loss).item():.2f} | {angle_loss.item()}")
@@ -225,17 +227,17 @@ def calculate_loss(
     :return:
     """
     _, points, y_true, _ = batch
-    bs     = points.shape[0]
-    loss   = torch.tensor([0.0], device=points.device)
+    bs = points.shape[0]
+    loss = torch.tensor([0.0], device=points.device)
     losses = torch.zeros(bs, device=points.device)
 
     if show_losses:
-        torch.set_printoptions  (linewidth=200)
-        torch.set_printoptions  (precision=3)
-        torch.set_printoptions  (sci_mode=False)
-        print(f"Points shape {points.shape}")
-        print(f"Y_true shape {len(y_true)} - {y_true[0].shape = }")
-        print(f"Y_pred shape {len(y_pred)} - {y_pred.shape = }")
+        torch.set_printoptions(linewidth=200)
+        torch.set_printoptions(precision=3)
+        torch.set_printoptions(sci_mode=False)
+        #print(f"Points shape {points.shape}")
+        #print(f"Y_true shape {len(y_true)} - {y_true[0].shape = }")
+        #print(f"Y_pred shape {len(y_pred)} - {y_pred.shape = }")
 
     for b_idx in range(bs):
         curr_points = points[b_idx]
@@ -246,23 +248,23 @@ def calculate_loss(
             cost_matrix_method, weights,
             show_losses
         )
-        if show_losses or losses[b_idx].item() >= 1. or curr_y_true.shape[0] >= 7:
-            print(f"{[b_idx]} Y_true\n{curr_y_true}")
-            print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
-            print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
+        #if show_losses or losses[b_idx].item() >= 1. or curr_y_true.shape[0] >= 7:
+            #print(f"{[b_idx]} Y_true\n{curr_y_true}")
+            #print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
+            #print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
     loss = torch.mean(losses)
-    return loss # / bs
+    return loss  # / bs
 
 
 if __name__ == "__main__":
-    batch_size = 1
+    batch_size = 5
     n_points = 10
-    n_heads = 20
-    n_true_syms = 4
+    n_heads = 5
+    n_true_syms = 1
 
     random_points = torch.rand((batch_size, n_points, 3))
     random_y_pred = torch.rand((batch_size, n_heads, 7))
-    random_y_true = [torch.rand((2, 6)) for i in range(n_true_syms)]
+    random_y_true = [torch.rand((n_true_syms, 6)) for i in range(batch_size)]
 
     old_loss_result = calculate_loss(
         (None, random_points, random_y_true, None),
@@ -270,19 +272,23 @@ if __name__ == "__main__":
         weights=torch.tensor([1.0, 0.1, 1.0, 1.0])
     )
 
-    items = [SymDatasetItem("a-a-aa.xz", 0, random_points[i], random_y_true[i], None, None, None) for i in range(batch_size)]
+    items = [SymDatasetItem("a-a-aa.xz", 0, random_points[i], random_y_true[i], None, None, None) for i in
+             range(batch_size)]
     batch = SymDatasetBatcher(items)
 
-    c_hat, match_pred, match_true, pred2true, true2pred = SimpleMatcher(method=calculate_cost_matrix_normals, device="cpu").get_optimal_assignment(batch.get_points(),
-                                                                                              random_y_pred, random_y_true)
+    c_hat, match_pred, match_true, pred2true, true2pred = SimpleMatcher(method=calculate_cost_matrix_normals,
+                                                                        device="cpu").get_optimal_assignment(
+        batch.get_points(),
+        random_y_pred, random_y_true)
     bundled_predictions = (batch, random_y_pred, c_hat, match_pred, match_true)
-    plane_loss =  ReflectionSymmetryLoss(
-                confidence_weight=1.0, confidence_loss=ConfidenceLoss(weighted=False),
-                normal_weight=1.0, normal_loss=NormalLoss(),
-                distance_weight=1.0, distance_loss=DistanceLoss(),
-                reflection_symmetry_distance_weight=0.1,
-                reflection_symmetry_distance=ReflectionSymmetryDistance()
-            )
+    plane_loss = ReflectionSymmetryLoss(
+        confidence_weight=1.0, confidence_loss=ConfidenceLoss(weighted=False),
+        normal_weight=1.0, normal_loss=NormalLoss(),
+        distance_weight=1.0, distance_loss=DistanceLoss(),
+        reflection_symmetry_distance_weight=0.1,
+        reflection_symmetry_distance=ReflectionSymmetryDistance()
+    )
+
     new_loss_result, others = plane_loss.forward(bundled_predictions)
 
     print("NEW", new_loss_result)
@@ -295,5 +301,3 @@ if __name__ == "__main__":
     print(f"angle_loss   : {(others[1] / new_loss_result).item():.2f} | {others[1].item()}")
     print(f"distance_loss: {(others[2] / new_loss_result).item():.2f} | {others[2].item()}")
     print(f"Total_loss   : {new_loss_result.item():.2f}")
-
-
