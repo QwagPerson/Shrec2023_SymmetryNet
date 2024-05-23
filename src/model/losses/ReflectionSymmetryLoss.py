@@ -31,7 +31,8 @@ class ReflectionSymmetryLoss(nn.Module):
         batch, plane_predictions, plane_c_hats, matched_plane_pred, matched_plane_real = bundled_plane_predictions
 
         batch_size = batch.size
-        loss_matrix = torch.zeros((batch_size, 4), device=batch.device)
+        #loss_matrix = torch.zeros((batch_size, 4), device=batch.device)
+        loss_matrix = torch.zeros((batch_size, 5), device=batch.device)
 
         for b_idx in range(batch_size):
             item = batch.get_item(b_idx)
@@ -41,8 +42,15 @@ class ReflectionSymmetryLoss(nn.Module):
             curr_y_true = matched_plane_real[b_idx]
             curr_y_pred = matched_plane_pred[b_idx]
 
+            print(f'\n\n{curr_y_pred = }')
+            print(f'{curr_y_true = }')
+
             curr_conf_true = plane_c_hats[b_idx]
             curr_conf_pred = plane_predictions[b_idx, :, -1]
+
+            print(f'{curr_conf_pred = }')
+            print(f'{curr_conf_true = }')
+
             conf_loss = self.confidence_weight * self.confidence_loss(curr_conf_pred, curr_conf_true)
 
             if curr_y_true is None:
@@ -55,6 +63,12 @@ class ReflectionSymmetryLoss(nn.Module):
             curr_normal_pred = curr_y_pred[:, 0:3]
             curr_center_pred = curr_y_pred[:, 3:6]
 
+            print(f'{curr_normal_pred = }')
+            print(f'{curr_normal_true = }')
+            print(f'{curr_center_pred = }')
+            print(f'{curr_center_true = }')
+
+            mse_loss = torch.nn.MSELoss()(curr_normal_pred, curr_normal_true)
             normal_loss = self.normal_weight * self.normal_loss(curr_normal_pred, curr_normal_true)
 
             distance_loss = self.distance_weight * self.distance_loss(curr_center_pred, curr_center_true)
@@ -63,14 +77,15 @@ class ReflectionSymmetryLoss(nn.Module):
                                             self.reflection_symmetry_distance(
                                                 curr_points,
                                                 curr_normal_pred, curr_normal_true,
-                                                curr_center_pred, curr_normal_true
+                                                curr_center_pred, curr_center_true
                                             )
                                             )
 
             loss_matrix[b_idx, 0] = conf_loss
-            loss_matrix[b_idx, 1] = normal_loss
+            loss_matrix[b_idx, 1] = normal_loss * 10.
             loss_matrix[b_idx, 2] = distance_loss
-            loss_matrix[b_idx, 3] = reflection_symmetry_distance
+            loss_matrix[b_idx, 3] = reflection_symmetry_distance * 10.
+            loss_matrix[b_idx, 4] = mse_loss * 10.
 
         loss = torch.sum(loss_matrix) / batch_size
 
@@ -83,11 +98,13 @@ class ReflectionSymmetryLoss(nn.Module):
             normal_loss                  = loss_matrix[b_idx, 1]
             distance_loss                = loss_matrix[b_idx, 2]
             reflection_symmetry_distance = loss_matrix[b_idx, 3]
+            mse_loss                     = loss_matrix[b_idx, 4]
             print(f"\n")
             print(f"REF conf_loss    : {(conf_loss / total_loss).item():.2f} | {conf_loss.item()}")
             print(f"REF sde_loss     : {(reflection_symmetry_distance / total_loss).item():.2f} | {reflection_symmetry_distance.item()}")
             print(f"REF normal_loss  : {(normal_loss / total_loss).item():.2f} | {normal_loss.item()}")
             print(f"REF distance_loss: {(distance_loss / total_loss).item():.2f} | {distance_loss.item()}")
+            print(f"REF mse_loss     : {(mse_loss / total_loss).item():.2f} | {mse_loss.item()}")
             print(f"REF Total_loss   : {total_loss.item():.2f}")
             print(f"\n")
 

@@ -15,7 +15,7 @@ from src.model.losses.ReflectionSymmetryLoss import ReflectionSymmetryLoss
 from src.model.losses.RotationalSymmetryDistance import RotationalSymmetryDistance
 from src.model.losses.RotationalSymmetryLoss import RotationalSymmetryLoss
 from src.model.matchers.SimpleMatcher import SimpleMatcher
-from src.model.matchers.cost_matrix_methods import calculate_cost_matrix_normals
+from src.model.matchers.cost_matrix_methods import calculate_cost_matrix_normals, calculate_cost_matrix_mse
 
 
 class LightingCenterNNormalsNet(lightning.LightningModule):
@@ -46,10 +46,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
         if plane_loss == "default":
             self.plane_loss = ReflectionSymmetryLoss(
-                confidence_weight=1.0, confidence_loss=ConfidenceLoss(),
+                confidence_weight=10.0, confidence_loss=ConfidenceLoss(),
                 normal_weight=1.0, normal_loss=NormalLoss(),
                 distance_weight=1.0, distance_loss=DistanceLoss(),
-                reflection_symmetry_distance_weight=0.1,
+                reflection_symmetry_distance_weight=1.0,
                 reflection_symmetry_distance=ReflectionSymmetryDistance()
             )
         else:
@@ -58,7 +58,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             "confidence",
             "normal",
             "distance",
-            "ref_sym_distance"
+            "ref_sym_distance",
+            "mse"
         ]
 
         if discrete_rotational_loss == "default":
@@ -178,6 +179,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         """
 
         for idx in range(others.shape[0]):
+            print(f'{idx} {others[idx]} {losses_tags[idx]}')
             self._log(others[idx], f"loss_{losses_tags[idx]}", sym_tag, step_tag, batch.size)
 
         self._log(loss, "loss", sym_tag, step_tag, batch.size, prog_bar=True)
