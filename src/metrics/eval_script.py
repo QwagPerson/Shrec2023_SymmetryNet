@@ -9,6 +9,8 @@ def get_diagonals_length(points: torch.Tensor):
     :param points: Shape N x 3
     :return: length Shape 1
     """
+    assert len(points.shape) == 2
+    assert points.shape[1] == 3
     diagonal = points.max(dim=0).values - points.min(dim=0).values
     return torch.linalg.norm(diagonal)
 
@@ -184,6 +186,13 @@ def calculate_metrics(match_sequence, groundtruth_total):
 
     if match_amount != 0:
         map_ = map_ / match_amount
+    elif match_sequence.shape[0] == 0 and groundtruth_total == 0:
+        # Case when the model left 0 metrics with confidence > confidence_threshold
+        # And there are no groundtruths so map =1.0 and PHC=1.0 i guess? This could
+        # Make interpretation harder but ok
+        map_ = 1.0
+        phc = 1.0
+
 
     return map_, phc, pr_curve
 
@@ -231,7 +240,7 @@ if __name__ == "__main__":
     gt = 4
     predictions = [
         [
-            torch.rand((bs, 10, 3)), torch.rand((bs, h, 7)), [torch.rand(gt, 7) for _ in range(bs)]
+            torch.rand((bs, 10, 3)), torch.rand((bs, h, 7)), [torch.rand(gt, 6) for _ in range(bs)]
         ] for _ in range(10)
     ]
     pdict = {
@@ -242,6 +251,13 @@ if __name__ == "__main__":
     }
     end = calculate_metrics_from_predictions(predictions, get_match_sequence_continue_rotational_symmetry, pdict)
     print(end)
+
+    gt = torch.tensor([[     0.000,      1.000,      0.000,     -0.002,      0.001,     -0.000]])
+    pr = torch.tensor([[    -0.005,      1.000,      0.008,      0.000,      0.000,      0.002,      0.981]])
+
+    gt = SymPlane.from_tensor(gt[0])
+    pr = SymPlane.from_tensor(pr[0, 0:6])
+    gt.is_close(pr, angle_threshold=0.00015230484, distance_threshold=1)
 
 
 def get_match_sequence_rotational_symmetry():

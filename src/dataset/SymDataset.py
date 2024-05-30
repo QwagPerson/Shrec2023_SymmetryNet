@@ -22,6 +22,8 @@ class SymDataset(Dataset):
             data_source_path: str = "path/to/dataset/split",
             transform: AbstractTransform = IdentityTransform(),
             has_ground_truth: bool = True,
+            shape_excluded: Optional[List[str]] = None,
+            perturbation_excluded: Optional[List[str]] = None,
             debug=False
     ):
         """
@@ -37,7 +39,18 @@ class SymDataset(Dataset):
 
         if self.debug:
             print(f'Searching xz-compressed point cloud files in {self.data_source_path}...')
+
+        self.shape_excluded = [] if shape_excluded is None else shape_excluded
+        self.perturbation_excluded = [] if perturbation_excluded is None else perturbation_excluded
+
         self.filename_list = list(self.data_source_path.rglob(f'*/*.xz'))
+
+        self.filename_list = [
+            filename for filename in self.filename_list
+            if str(filename.name).split("-")[1] not in self.shape_excluded
+               and str(filename.name).split("-")[2].replace(".xz", "") not in self.perturbation_excluded
+        ]
+
         self.length = len(self.filename_list)
         if self.debug:
             print(
@@ -151,9 +164,9 @@ class SymDataset(Dataset):
 if __name__ == "__main__":
     dataset = SymDataset("/data/sym-10k-xz-split-class-noparallel/train",
                          ComposeTransform(
-                                  [RandomSampler(sample_size=3),
-                                   UnitSphereNormalization()]
-                              )
+                             [RandomSampler(sample_size=3),
+                              UnitSphereNormalization()]
+                         )
                          )
     xd = dataset[0]
     print(xd)

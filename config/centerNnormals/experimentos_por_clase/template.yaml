@@ -10,7 +10,7 @@ trainer:
     class_path: lightning.pytorch.loggers.CSVLogger
     init_args:
       save_dir: ./logs
-      name: center_n_normals_2_test_run_anomaly_check
+      name: experimento_clase_
       version: null
       prefix: ''
       flush_logs_every_n_steps: 100
@@ -52,8 +52,8 @@ trainer:
   default_root_dir: null
 model:
   amount_of_plane_normals_predicted: 32
-  amount_of_axis_discrete_normals_predicted: 16
-  amount_of_axis_continue_normals_predicted: 16
+  amount_of_axis_discrete_normals_predicted: 0
+  amount_of_axis_continue_normals_predicted: 0
   plane_loss:
     class_path: src.model.losses.ReflectionSymmetryLoss.ReflectionSymmetryLoss
     init_args:
@@ -76,62 +76,10 @@ model:
        reflection_symmetry_distance:
          class_path: src.model.losses.ReflectionSymmetryDistance.ReflectionSymmetryDistance
          init_args:
-           p: 1
+           p: 2
            reduction: "mean"
-  discrete_rotational_loss:
-    class_path: src.model.losses.DiscreteRotationalSymmetryLoss.DiscreteRotationalSymmetryLoss
-    init_args:
-      confidence_weight: 1.0
-      confidence_loss:
-        class_path: src.model.losses.ConfidenceLoss.ConfidenceLoss
-      normal_weight: 1.0
-      normal_loss:
-        class_path: src.model.losses.NormalLoss.NormalLoss
-        init_args:
-          check_normalized: True
-          reduction: "mean"
-      distance_weight: 1.0
-      distance_loss:
-        class_path: src.model.losses.DistanceLoss.DistanceLoss
-        init_args:
-          p: 2
-          reduction: "mean"
-      angle_weight: 1.0
-      angle_loss:
-        class_path: src.model.losses.DistanceLoss.DistanceLoss
-        init_args:
-          p: 2
-          reduction: "mean"
-      rotational_symmetry_distance_weight: 0.1
-      rotational_symmetry_distance:
-        class_path: src.model.losses.RotationalSymmetryDistance.RotationalSymmetryDistance
-        init_args:
-          p: 1
-          reduction: "mean"
-  continue_rotational_loss:
-    class_path: src.model.losses.RotationalSymmetryLoss.RotationalSymmetryLoss
-    init_args:
-      confidence_weight: 1.0
-      confidence_loss:
-        class_path: src.model.losses.ConfidenceLoss.ConfidenceLoss
-      normal_weight: 1.0
-      normal_loss:
-        class_path: src.model.losses.NormalLoss.NormalLoss
-        init_args:
-          check_normalized: True
-          reduction: "mean"
-      distance_weight: 1.0
-      distance_loss:
-        class_path: src.model.losses.DistanceLoss.DistanceLoss
-        init_args:
-          p: 2
-          reduction: "mean"
-      rotational_symmetry_distance_weight: 0.1
-      rotational_symmetry_distance:
-        class_path: src.model.losses.RotationalSymmetryDistance.RotationalSymmetryDistance
-        init_args:
-          p: 1
-          reduction: "mean"
+  discrete_rotational_loss: "default"
+  continue_rotational_loss: "default"
   w1: 1.0
   w2: 1.0
   w3: 1.0
@@ -148,18 +96,16 @@ model:
 data:
   dataset_path: /data/sym-10k-xz-split-class-noparallel
   predict_data_path: /path/to/predict_data
-  does_predict_has_ground_truths: false
-  batch_size: 32
+  batch_size: 1
   transform:
     class_path: src.dataset.transforms.ComposeTransform.ComposeTransform
     init_args:
        transforms:
-       - class_path: src.dataset.transforms.RandomSampler.RandomSampler
-         init_args:
-           sample_size: 8192
-           keep_copy: true
        - class_path: src.dataset.transforms.UnitSphereNormalization.UnitSphereNormalization
+  shape_excluded: ["astroid", "citrus", "cylinder", "egg_keplero", "geometric_petal", "lemniscate", "m_convexities", "mouth_curve", "revolution", "square"]
+  perturbation_excluded: ['clean', 'uniform', 'gaussian', 'undersampling', 'undersampling+uniform', 'undersampling+gaussian']
+  does_predict_has_ground_truths: false
   collate_function: src.dataset.SymDataModule.custom_collate_fn
   shuffle: true
-  n_workers: 0
+  n_workers: 1
 ckpt_path: null

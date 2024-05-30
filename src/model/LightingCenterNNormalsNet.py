@@ -91,7 +91,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         ]
         if continue_rotational_loss == "default":
             self.continue_rotational_loss = RotationalSymmetryLoss(
-                confidence_weight=1.0, confidence_loss=ConfidenceLoss(),
+                confidence_weight=1.0, confidence_loss=ConfidenceLoss(weighted=True),
                 normal_weight=1.0, normal_loss=NormalLoss(),
                 distance_weight=1.0, distance_loss=DistanceLoss(),
                 rotational_symmetry_distance_weight=0.1,
@@ -126,7 +126,9 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             "rot_angle_threshold": self.rot_angle_threshold,
         }
 
-        self.save_hyperparameters(ignore=["net", "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"])
+        # If warning concerns you read this https://github.com/Lightning-AI/pytorch-lightning/discussions/13615
+        # Honestly idk will leave it like this for now
+        self.save_hyperparameters(ignore=["net"]) # , "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())

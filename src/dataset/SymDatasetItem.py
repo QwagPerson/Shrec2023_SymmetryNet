@@ -107,3 +107,7 @@ class SymDatasetItem:
         self.axis_discrete_symmetries = self.axis_discrete_symmetries.to(
             device) if self.axis_discrete_symmetries is not None else None
         return self
+
+    def visualize(self):
+        # TODO: Implement this.
+        pass
