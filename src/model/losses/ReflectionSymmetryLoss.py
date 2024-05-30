@@ -81,12 +81,6 @@ class ReflectionSymmetryLoss(nn.Module):
             loss_matrix[b_idx, 3] = reflection_symmetry_distance
 
             total_loss = loss_matrix[b_idx].sum()
-            print("Batch idx", b_idx)
-            print(f"conf_loss    : {(conf_loss / total_loss).item():.2f} | {conf_loss.item()}")
-            print(f"sde_loss     : {(reflection_symmetry_distance / total_loss).item():.2f} | {reflection_symmetry_distance.item()}")
-            print(f"angle_loss   : {(normal_loss / total_loss).item():.2f} | {normal_loss.item()}")
-            print(f"distance_loss: {(distance_loss / total_loss).item():.2f} | {distance_loss.item()}")
-            print(f"Total_loss   : {total_loss.item():.2f}")
 
         loss = torch.sum(loss_matrix) / batch_size
         return loss, loss_matrix.sum(dim=0)
