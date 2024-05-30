@@ -1,10 +1,18 @@
+import lzma
+
+import numpy as np
 import torch
 from torch import nn
 
+from src.dataset.SymDatasetBatcher import SymDatasetBatcher
+from src.dataset.SymDatasetItem import SymDatasetItem
+from src.dataset.transforms.IdentityTransform import IdentityTransform
 from src.model.losses.ConfidenceLoss import ConfidenceLoss
 from src.model.losses.DistanceLoss import DistanceLoss
 from src.model.losses.NormalLoss import NormalLoss
 from src.model.losses.ReflectionSymmetryDistance import ReflectionSymmetryDistance
+from src.model.matchers.SimpleMatcher import SimpleMatcher
+from src.model.matchers.cost_matrix_methods import calculate_cost_matrix_normals
 
 
 class ReflectionSymmetryLoss(nn.Module):
@@ -72,6 +80,115 @@ class ReflectionSymmetryLoss(nn.Module):
             loss_matrix[b_idx, 2] = distance_loss
             loss_matrix[b_idx, 3] = reflection_symmetry_distance
 
-        print(loss_matrix)
+            total_loss = loss_matrix[b_idx].sum()
+            print("Batch idx", b_idx)
+            print(f"conf_loss    : {(conf_loss / total_loss).item():.2f} | {conf_loss.item()}")
+            print(f"sde_loss     : {(reflection_symmetry_distance / total_loss).item():.2f} | {reflection_symmetry_distance.item()}")
+            print(f"angle_loss   : {(normal_loss / total_loss).item():.2f} | {normal_loss.item()}")
+            print(f"distance_loss: {(distance_loss / total_loss).item():.2f} | {distance_loss.item()}")
+            print(f"Total_loss   : {total_loss.item():.2f}")
+
         loss = torch.sum(loss_matrix) / batch_size
         return loss, loss_matrix.sum(dim=0)
+
+
+def my_parse_sym_file(filename, debug):
+    planar_symmetries = []
+    axis_continue_symmetries = []
+    axis_discrete_symmetries = []
+
+    with open(filename) as f:
+        line_amount = int(f.readline())
+        for _ in range(line_amount):
+            line = f.readline().split(" ")
+            line = [x.replace("\n", "") for x in line]
+            if line[0] == "plane":
+                plane = [float(x) for x in line[1::]]
+                planar_symmetries.append(torch.tensor(plane))
+            elif line[0] == "axis" and line[-1] == "inf":
+                plane = [float(x) for x in line[1:7]]
+                axis_continue_symmetries.append(torch.tensor(plane))
+            else:
+                plane = [float(x) for x in line[1::]]
+                axis_discrete_symmetries.append(torch.tensor(plane))
+
+    planar_symmetries = None if len(planar_symmetries) == 0 else torch.stack(planar_symmetries).float()
+    axis_continue_symmetries = None if len(axis_continue_symmetries) == 0 else torch.stack(
+        axis_continue_symmetries).float()
+    axis_discrete_symmetries = None if len(axis_discrete_symmetries) == 0 else torch.stack(
+        axis_discrete_symmetries).float()
+    if debug:
+        print(f'Parsed file at: {filename}')
+        formatted_print = lambda probably_tensor, text: print(f'\t No {text} found.') if probably_tensor is None \
+            else print(f'\tGot {probably_tensor.shape[0]} {text}.')
+        formatted_print(planar_symmetries, "Plane symmetries")
+        formatted_print(axis_discrete_symmetries, "Discrete axis symmetries")
+        formatted_print(axis_continue_symmetries, "Continue axis symmetries")
+
+    return planar_symmetries, axis_continue_symmetries, axis_discrete_symmetries
+
+
+def my_read_points(filename, debug) -> torch.Tensor:
+    with lzma.open(filename, 'rb') as fhandle:
+        points = torch.tensor(np.loadtxt(fhandle))
+
+    if debug:
+        torch.set_printoptions(linewidth=200)
+        torch.set_printoptions(precision=3)
+        torch.set_printoptions(sci_mode=False)
+        print(f'[{filename}]: {points.shape = }\n{points = }')
+
+    return points
+
+
+if __name__ == "__main__":
+    DEBUG = True
+    FILENAME = "/data/sym-10k-xz-split-class-noparallel/train/citrus/000014-citrus-uniform"
+    HEADS = 10
+    BATCH_SIZE = 1
+
+    y_true, _, _ = my_parse_sym_file(FILENAME + "-sym.txt", DEBUG)
+    y_true = y_true.float()
+    points = my_read_points(FILENAME + ".xz", DEBUG).float()
+
+    y_pred = torch.tensor([
+        [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    ]).float()
+    y_pred = y_pred.reshape(BATCH_SIZE, y_pred.shape[0], y_pred.shape[1])
+
+    loss_obj = ReflectionSymmetryLoss(
+        confidence_weight=1.0, confidence_loss=ConfidenceLoss(weighted=False),
+        normal_weight=1.0, normal_loss=NormalLoss(),
+        reflection_symmetry_distance_weight=0.1, reflection_symmetry_distance=ReflectionSymmetryDistance(),
+        distance_weight=1.0, distance_loss=DistanceLoss()
+    )
+
+    data_item = SymDatasetItem(
+        filename=FILENAME,
+        idx=1,
+        points=points,
+        plane_symmetries=y_true,
+        axis_continue_symmetries=None,
+        axis_discrete_symmetries=None,
+        transform=IdentityTransform()
+    )
+
+    batch = SymDatasetBatcher(item_list=[data_item])
+
+    matcher = SimpleMatcher(method=calculate_cost_matrix_normals, device="cpu")
+
+    c_hat, match_pred, match_true, pred2true, true2pred = matcher.get_optimal_assignment(
+        batch.get_points(), y_pred, batch.get_plane_syms()
+    )
+
+    bundled_plane_predictions = batch, y_pred, c_hat, match_pred, match_true
+
+    loss, loss_2 = loss_obj.forward(bundled_plane_predictions)
+
+    print("conf", loss_2[0])
+    print("sde", loss_2[3])
+    print("angle", loss_2[1])
+    print("distance", loss_2[2])
+    print(loss)

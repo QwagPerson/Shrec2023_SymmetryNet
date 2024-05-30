@@ -6,7 +6,7 @@ from src.model.LightingCenterNNormalsNet import LightingCenterNNormalsNet
 
 
 def cli_main():
-    torch.set_float32_matmul_precision('highest')
+    torch.set_float32_matmul_precision('high')
     cli = LightningCLI(LightingCenterNNormalsNet, SymDataModule)
 
 

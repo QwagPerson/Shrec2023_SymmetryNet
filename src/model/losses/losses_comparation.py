@@ -142,7 +142,7 @@ def get_sde(points, pred_plane, true_plane, p=2):
 
     return torch.norm(
         true_plane.reflect_points(points) - pred_plane.reflect_points(points),
-        dim=1, p=p
+        dim=0, p=p
     ).mean()
 
 
@@ -162,6 +162,7 @@ def calculate_sde_loss(points, y_pred, y_true):
 
 
 def calculate_loss_aux(
+        id,
         points,
         y_pred,
         y_true,
@@ -195,10 +196,11 @@ def calculate_loss_aux(
 
     total_loss = confidence_loss + sde_loss + angle_loss + distance_loss
 
-    if show_loss_log or True:
+    if show_loss_log or True: # : # qwag
         torch.set_printoptions(linewidth=200)
         torch.set_printoptions(precision=3)
         torch.set_printoptions(sci_mode=False)
+        print("Batch idx", id)
         print(f"conf_loss    : {(confidence_loss / total_loss).item():.2f} | {confidence_loss.item()}")
         print(f"sde_loss     : {(sde_loss / total_loss).item():.2f} | {sde_loss.item()}")
         print(f"angle_loss   : {(angle_loss / total_loss).item():.2f} | {angle_loss.item()}")
@@ -243,7 +245,7 @@ def calculate_loss(
         curr_points = points[b_idx]
         curr_y_true = y_true[b_idx]
         curr_y_pred = y_pred[b_idx]
-        losses[b_idx] = calculate_loss_aux(
+        losses[b_idx] = calculate_loss_aux(b_idx,
             curr_points, curr_y_pred, curr_y_true,
             cost_matrix_method, weights,
             show_losses
@@ -252,15 +254,16 @@ def calculate_loss(
             #print(f"{[b_idx]} Y_true\n{curr_y_true}")
             #print(f"{[b_idx]} Y_pred\n{curr_y_pred}")
             #print(f"{[b_idx]} Loss: {losses[b_idx].item()}")
+    print(losses)
     loss = torch.mean(losses)
     return loss  # / bs
 
 
 if __name__ == "__main__":
-    batch_size = 5
+    batch_size = 2
     n_points = 10
     n_heads = 5
-    n_true_syms = 1
+    n_true_syms = 4
 
     random_points = torch.rand((batch_size, n_points, 3))
     random_y_pred = torch.rand((batch_size, n_heads, 7))

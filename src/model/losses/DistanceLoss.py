@@ -19,6 +19,7 @@ class DistanceLoss(nn.Module):
         # Will leave it with dim=0 as it converges better and it is
         # equivalent to approximate the center componenet per componenet
         # x_pred->x_true, y_pred->y_true, z_pred->z_true
+        # Yep this still is the case, hmmmm WHY
         distances = torch.norm(center_true - center_pred, p=1, dim=0)
         return REDUCTIONS[self.reduction](distances)
 

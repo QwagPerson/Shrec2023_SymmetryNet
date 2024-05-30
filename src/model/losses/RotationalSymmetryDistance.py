@@ -32,6 +32,6 @@ class RotationalSymmetryDistance(nn.Module):
         for idx in range(m):
             rotated_pred = rotate_shape(axis_pred[idx], center_pred[idx], angle_pred[idx].reshape(1), points)
             rotated_true = rotate_shape(axis_true[idx], center_true[idx], angle_true[idx].reshape(1), points)
-            distances[idx] = torch.norm(rotated_pred - rotated_true, p=self.p, dim=1).mean()
+            distances[idx] = torch.norm(rotated_pred - rotated_true, p=self.p, dim=0).mean()
 
         return REDUCTIONS[self.reduction](distances)

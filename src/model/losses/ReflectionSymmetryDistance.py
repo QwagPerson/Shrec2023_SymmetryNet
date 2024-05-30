@@ -22,9 +22,22 @@ def get_sde(points, pred_plane, true_plane, p=2):
     pred_plane = SymPlane.from_tensor(pred_plane)
     true_plane = SymPlane.from_tensor(true_plane, normalize=True)
 
+    # Notice:
+    #   Here using dim=0 is equal to optimizing the mean
+    #   difference between both transformed point clouds component per component.
+    #   I'm accumulating the reconstruction error per x, y and z.
+    #   Other option was accumulate the reconstruction error per point.
+    #       dim=0 returns a vector of shape 3 where each component is the size of the error per axis.
+    #       dim=1 returns a vector of shape N where each component is the size of the error per point.
+    #   Weirdly enough only dim=0 converges on training.
+    # It a different version of a haudsorf distance within all points instead only the minimum
+
+    # Pointnet -> conjunto critico -> 1024 o menos -> chamfer converger mejor
+    # (A, B, 0) / 3 => (A, B) -> optimizar en este caso
+
     return torch.norm(
         true_plane.reflect_points(points) - pred_plane.reflect_points(points),
-        dim=1, p=p
+        dim=0, p=p
     ).mean()
 
 
@@ -115,6 +128,7 @@ if __name__ == "__main__":
 
     new_result = new.forward(points, normal_pred, normal_true, center_pred, center_true)
 
+    # they are almost the same
     print("OLD")
     print(old_result)
     print("NEW")

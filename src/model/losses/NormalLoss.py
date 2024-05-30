@@ -8,6 +8,22 @@ REDUCTIONS = {
     "sum": torch.sum,
 }
 
+def calculate_angle_loss(y_pred, y_true):
+    """
+    :param y_pred: M x 6
+    :param y_true: M x 6
+    :return:
+    """
+    normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)  # M x 3
+    normals_true = torch.nn.functional.normalize(y_true[:, 0:3], dim=1)  # M x 3
+
+    # cos(theta) = n_1 . n_2.T
+    # => if n_1 == n_2 => cos(theta) = 1
+    # or if n_1 == -n_2 => cos(Theta) = -1
+    # Min theta <=> Min 1 - |cos(Theta)| <=> 1 - |n_1 . n_2.T|
+    cos_angle = 1 - torch.abs(normals_true @ normals_pred.T)
+    return cos_angle.min(dim=0).values.mean()
+
 
 class NormalLoss(nn.Module):
     def __init__(self, check_normalized=True, reduction="mean"):
@@ -15,7 +31,18 @@ class NormalLoss(nn.Module):
         self.check_normalized = check_normalized
         self.reduction = reduction
 
-    def forward(self, n_pred, n_true):
+    def forward(self, y_pred, y_true):
+        normals_pred = torch.nn.functional.normalize(y_pred[:, 0:3], dim=1)  # M x 3
+        normals_true = torch.nn.functional.normalize(y_true[:, 0:3], dim=1)  # M x 3
+
+        # cos(theta) = n_1 . n_2.T
+        # => if n_1 == n_2 => cos(theta) = 1
+        # or if n_1 == -n_2 => cos(Theta) = -1
+        # Min theta <=> Min 1 - |cos(Theta)| <=> 1 - |n_1 . n_2.T|
+        cos_angle = 1 - torch.abs(normals_true @ normals_pred.T)
+        return cos_angle.min(dim=0).values.mean()
+
+    def forward_2(self, n_pred, n_true):
         if self.check_normalized:
             pred_normalized = torch.allclose(torch.norm(n_pred, dim=1),
                                              torch.ones((n_pred.shape[0]), device=n_pred.device))
