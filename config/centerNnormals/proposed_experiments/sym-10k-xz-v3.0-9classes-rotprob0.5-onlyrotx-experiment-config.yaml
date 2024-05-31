@@ -10,7 +10,7 @@ trainer:
     class_path: lightning.pytorch.loggers.CSVLogger
     init_args:
       save_dir: ./logs
-      name: sym-10k-xz-v1.0-repack-rotprob0.5-onlyrotx-experiment-easy
+      name: sym-10k-xz-v3.0-9classes-rotprob0.5-onlyrotx-experiment-intermediate-1
       version: null
       prefix: ''
       flush_logs_every_n_steps: 100
@@ -97,7 +97,7 @@ model:
   encoder: pointnet
   n_points: 8192
 data:
-  dataset_path: /data/gsanteli/datasets_neurips/sym-10k-xz-v1.0-repack-rotprob0.5-onlyrotx
+  dataset_path: /data/gsanteli/datasets_neurips/sym-10k-xz-v3.0-9classes-rotprob0.5-onlyrotx
   predict_data_path: /path/to/predict_data
   does_predict_has_ground_truths: false
   batch_size: 1

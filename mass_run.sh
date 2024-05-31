@@ -1,2 +1,0 @@
-PYTHONPATH=. python main.py fit --config ./config/centerNnormals/proposed_experiments/sym-10k-xz-v1.0-repack-rotprob0.5-onlyrotx-experiment-config.yaml
-PYTHONPATH=. python main.py fit --config ./config/centerNnormals/proposed_experiments/sym-100k-xz-v1.0-repack-rotprob0.5-onlyrotx-experiment-config.yaml
