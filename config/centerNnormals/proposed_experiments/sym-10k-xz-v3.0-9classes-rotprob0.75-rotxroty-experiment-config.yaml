@@ -17,10 +17,10 @@ trainer:
   callbacks:
     class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
-      filename: '{epoch}_{plane_train_loss_epoch:.3f}_{plane_train_map_epoch:.3f}'
+      filename: '{epoch}_{plane_train_loss_epoch:.3f}_{plane_train_map_epoch:.3f}_{plane_val_loss_epoch:.3f}_{plane_val_map_epoch:.3f}'
       save_top_k: -1
   fast_dev_run: false
-  max_epochs: 20
+  max_epochs: 10
   min_epochs: null
   max_steps: -1
   min_steps: null
