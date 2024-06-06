@@ -1,0 +1,48 @@
+Easy
+
+./wandb-graph.py /tmp/neur/metrics/andrea/easy/10k/metrics.csv epoch plane_train_loss_epoch --y2 plane_train_map_epoch --y3 plane_train_phc_epoch --legend br --out_fn symmetria-easy-10k-train.png
+
+./wandb-graph.py /tmp/neur/metrics/andrea/easy/10k/metrics.csv epoch plane_val_loss_epoch --y2 plane_val_map_epoch --y3 plane_val_phc_epoch --legend tl --out_fn symmetria-easy-10k-val.png
+
+
+Int 1
+
+./wandb-graph.py /tmp/neur/metrics/andrea/intermediate-1/10k/metrics.csv epoch plane_train_loss_epoch --y2 plane_train_map_epoch --y3 plane_train_phc_epoch --legend br --out_fn symmetria-intermediate1-10k-train.png
+
+./wandb-graph.py /tmp/neur/metrics/andrea/intermediate-1/10k/metrics.csv epoch plane_val_loss_epoch --y2 plane_val_map_epoch --y3 plane_val_phc_epoch --legend tl --out_fn symmetria-intermediate1-10k-val.png
+
+
+Int 2
+
+./wandb-graph.py /tmp/neur/metrics/andrea/intermediate-2/10k/metrics.csv epoch plane_train_loss_epoch --y2 plane_train_map_epoch --y3 plane_train_phc_epoch --legend tl --out_fn symmetria-intermediate2-10k-train.png
+
+./wandb-graph.py /tmp/neur/metrics/andrea/intermediate-2/10k/metrics.csv epoch plane_val_loss_epoch --y2 plane_val_map_epoch --y3 plane_val_phc_epoch --legend tl --out_fn symmetria-intermediate2-10k-val.png
+
+Hard
+
+./wandb-graph.py /tmp/neur/metrics/andrea/hard/10k/metrics.csv epoch plane_train_loss_epoch --y2 plane_train_map_epoch --y3 plane_train_phc_epoch --legend tl --out_fn symmetria-hard-10k-train.png
+
+./wandb-graph.py /tmp/neur/metrics/andrea/hard/10k/metrics.csv epoch plane_val_loss_epoch --y2 plane_val_map_epoch --y3 plane_val_phc_epoch --legend tl --out_fn symmetria-hard-10k-val.png
+
+
+
+
+Grouped - Training
+
+./wandb-graph-multifile.py /tmp/neur/metrics/andrea epoch plane_train_loss_epoch --y2 plane_train_map_epoch --y3 plane_train_phc_epoch --legend cl
+
+Grouped - Validation
+
+./wandb-graph-multifile.py /tmp/neur/metrics/andrea epoch plane_val_loss_epoch --y2 plane_val_map_epoch --y3 plane_val_phc_epoch --legend cl
+
+
+
+
+
+Breakout losses
+
+for i in easy  hard  intermediate-1  intermediate-2 ; do ./wandb-graph.py /tmp/neur/metrics/gustavo/$i/100k/metrics.csv epoch plane_train_loss_epoch --y2 plane_train_loss_ref_sym_distance_epoch --y3 plane_train_loss_distance_epoch --y4 plane_train_loss_normal_epoch --y5 plane_train_loss_confidence_epoch --legend tr --out_fn symmetria-$i-100k-train-losses-breakout-nosmooth.png --smooth_sigma -1 ; done
+
+for i in easy  hard  intermediate-1  intermediate-2 ; do ./wandb-graph.py /tmp/neur/metrics/gustavo/$i/100k/metrics.csv epoch plane_val_loss_epoch --y2 plane_val_loss_ref_sym_distance_epoch --y3 plane_val_loss_distance_epoch --y4 plane_val_loss_normal_epoch --y5 plane_val_loss_confidence_epoch --legend tr --out_fn symmetria-$i-100k-val-losses-breakout-nosmooth.png --smooth_sigma -1 ; done
+
+

@@ -1,0 +1,30 @@
+Training
+
+./main.py fit --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-easy-100k.yaml | xz -1 --block-size=10MiB --memlimit=150MiB > symmetria-easy-100k-bs1-`currdate`-`currtime`-master.txt.xz
+
+./main.py fit --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-intermediate1-100k.yaml | xz -1 --block-size=10MiB --memlimit=150MiB > symmetria-intermediate1-100k-bs1-`currdate`-`currtime`-master.txt.xz
+
+./main.py fit --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-intermediate2-100k.yaml | xz -1 --block-size=10MiB --memlimit=150MiB > symmetria-intermediate2-100k-bs1-`currdate`-`currtime`-master.txt.xz
+
+./main.py fit --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-hard-100k.yaml | xz -1 --block-size=10MiB --memlimit=150MiB > symmetria-hard-100k-bs1-`currdate`-`currtime`-master.txt.xz
+
+./main.py fit --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-hard-10k.yaml | xz -1 --block-size=10MiB --memlimit=150MiB > symmetria-hard-10k-bs1-`currdate`-`currtime`-master.txt.xz
+
+Test:
+
+python main.py test --config <config_path> --ckpt_path <checkpoint_path>
+
+python main.py test --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-easy-10k.yaml --ckpt_path '/mnt/btrfs-big/models/symmetria/bs1-symmetria-easy-10k/epoch=1-plane_train_loss_epoch=0.504-plane_train_map_epoch=0.843-plane_val_loss_epoch=0.461-plane_val_map_epoch=0.866-version-1-to-keep.ckpt' &> symmetria-easy-10k-bs1-`currdate`-`currtime`-master-test-best-model-epoch-1-val_map-0.866.txt
+
+python main.py test --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-intermediate1-10k.yaml --ckpt_path '/mnt/btrfs-big/models/symmetria/bs1-symmetria-medium1-10k/epoch=13-plane_train_loss_epoch=0.416-plane_train_map_epoch=0.767-plane_val_loss_epoch=0.375-plane_val_map_epoch=0.808-version-1-to-keep.ckpt' &> symmetria-intermediate-10k-bs1-`currdate`-`currtime`-master-test-best-model-epoch-13-val_map-0.808.txt
+
+python main.py test --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-intermediate2-10k.yaml --ckpt_path '/mnt/btrfs-big/models/symmetria/bs1-symmetria-medium2-10k/epoch=23-plane_train_loss_epoch=0.914-plane_train_map_epoch=0.204-plane_val_loss_epoch=0.901-plane_val_map_epoch=0.227.ckpt' &> symmetria-intermediate-2-10k-bs1-`currdate`-`currtime`-master-test-best-model-epoch-23-val_map-0.227.txt
+
+python main.py test --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-hard-10k.yaml --ckpt_path '/home/biagio/zzz________________symnet-models/bs1-symmetria-hard-10k/epoch=11-plane_train_loss_epoch=1.386-plane_train_map_epoch=0.002-plane_val_loss_epoch=1.339-plane_val_map_epoch=0.004.ckpt' &> symmetria-hard-10k-bs1-`currdate`-`currtime`-master-test-best-model-epoch-1-val_map-0.004.txt
+
+
+
+python main.py test --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-intermediate1-10k.yaml --ckpt_path '/mnt/btrfs-big/models/symmetria/bs1-symmetria-medium1-10k/epoch=22-plane_train_loss_epoch=0.360-plane_train_map_epoch=0.775-plane_val_loss_epoch=0.337-plane_val_map_epoch=0.800.ckpt' &> symmetria-intermediate-10k-bs1-`currdate`-`currtime`-master-test-best-model-epoch-22-val_map-0.800.txt
+python main.py test --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-intermediate1-10k.yaml --ckpt_path '/mnt/btrfs-big/models/symmetria/bs1-symmetria-medium1-10k/epoch=29-plane_train_loss_epoch=0.350-plane_train_map_epoch=0.766-plane_val_loss_epoch=0.401-plane_val_map_epoch=0.805.ckpt' &> symmetria-intermediate-10k-bs1-`currdate`-`currtime`-master-test-best-model-epoch-29-val_map-0.805.txt
+python main.py test --config config/centerNnormals/config-network-v2-zapp-brannigan-bs1-symmetria-intermediate1-10k.yaml --ckpt_path '/mnt/btrfs-big/models/symmetria/bs1-symmetria-medium1-10k/epoch=40-plane_train_loss_epoch=0.420-plane_train_map_epoch=0.769-plane_val_loss_epoch=0.386-plane_val_map_epoch=0.806.ckpt' &> symmetria-intermediate-10k-bs1-`currdate`-`currtime`-master-test-best-model-epoch-40-val_map-0.806.txt
+
