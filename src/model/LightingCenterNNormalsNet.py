@@ -172,42 +172,11 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
         return loss, map, phc
 
-    '''
-   def get_filenames(self):
-        return [item.filename for item in self.item_list]
-
-    def get_points(self):
-        return [item.points.to(self.device) for item in self.item_list]
-
-    def get_plane_syms(self):
-        plane_syms = [item.plane_symmetries for item in self.item_list]
-        for i in range(len(plane_syms)):
-            if plane_syms[i] is not None:
-                plane_syms[i] = plane_syms[i].to(self.device)
-        return plane_syms
-
-    def get_axis_continue_syms(self):
-        axis_continue_syms = [item.axis_continue_symmetries for item in self.item_list]
-        for i in range(len(axis_continue_syms)):
-            if axis_continue_syms[i] is not None:
-                axis_continue_syms[i] = axis_continue_syms[i].to(self.device)
-        return axis_continue_syms
-
-    def get_axis_discrete_syms(self):
-        axis_discrete_symmetries = [item.axis_discrete_symmetries for item in self.item_list]
-        for i in range(len(axis_discrete_symmetries)):
-            if axis_discrete_symmetries[i] is not None:
-                axis_discrete_symmetries[i] = axis_discrete_symmetries[i].to(self.device)
-        return axis_discrete_symmetries
-
-    def get_shape_type_classification_labels(self):
-    '''
-
     def _step(self, batch, batch_idx, step_tag):
         batch.device = self.device
         self.matcher.device = self.device
-        print(f'Batch[0]: {batch.get_filenames()[0]} - {batch.get_shape_type_classification_labels()[0]}')
-        print(f'Batch[0]: {batch.get_points()[0]}  - {batch.get_plane_syms()[0]}')
+        #print(f'Batch[0]: {batch.get_filenames()[0]} - {batch.get_shape_type_classification_labels()[0]}')
+        #print(f'Batch[0]: {batch.get_points()[0]}  - {batch.get_plane_syms()[0]}')
         points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 
@@ -238,15 +207,18 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
         self._log(loss, "loss", "total", step_tag, batch.size, prog_bar=True)
 
-        print(f'plane_predictions: {plane_predictions}')
+        #print(f'plane_predictions: {plane_predictions}')
 
         if self.use_wandb:
             wandb.log({'loss': loss, 'step': batch_idx})
             wandb.log({'plane_loss': plane_loss, 'step': batch_idx})
+
             if axis_discrete_predictions is not None:
                 wandb.log({'discrete_axis_loss': discrete_axis_loss, 'step': batch_idx})
+
             if axis_continue_predictions is not None:
                 wandb.log({'continue_axis_loss': continue_axis_loss, 'step': batch_idx})
+
             if batch_idx % 1000 == 0:
                 fn = batch.get_filenames()[0]
                 cl = batch.get_shape_type_classification_labels()[0]
