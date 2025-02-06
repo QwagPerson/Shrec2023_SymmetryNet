@@ -2,6 +2,7 @@ from typing import Callable, Union
 
 import lightning
 import torch
+import wandb
 
 from src.metrics.eval_script import calculate_metrics_from_predictions, get_match_sequence_plane_symmetry, \
     get_match_sequence_continue_rotational_symmetry, \
@@ -18,6 +19,8 @@ from src.model.losses.RotationalSymmetryLoss import RotationalSymmetryLoss
 from src.model.matchers.SimpleMatcher import SimpleMatcher
 from src.model.matchers.cost_matrix_methods import calculate_cost_matrix_normals
 
+from src.dataset.SymDatasetItem import SHAPE_TYPE
+from src.model.wandb.render_shape import wandb_log_gpu
 
 class LightingCenterNNormalsNet(lightning.LightningModule):
     def __init__(self,
@@ -39,7 +42,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  use_bn: bool = False,
                  normalize_normals: bool = True,
                  encoder: str = "pointnet",
-                 n_points: int = 8192
+                 n_points: int = 8192,
+                 use_wandb: bool = True
                  ):
         super().__init__()
         self.use_bn = use_bn
@@ -52,6 +56,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.w1 = w1
         self.w2 = w2
         self.w3 = w3
+        self.use_wandb = use_wandb
 
         if plane_loss == "default":
             self.plane_loss = ReflectionSymmetryLoss(
@@ -130,6 +135,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         # Honestly idk will leave it like this for now
         self.save_hyperparameters(ignore=["net"]) # , "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"
 
+        if self.use_wandb:
+            print(f'Using wandb')
+            wandb.init(project='symmetria-10k-easy-test')
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())
         return optimizer
@@ -163,9 +172,42 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
         return loss, map, phc
 
-    def _step(self, batch, step_tag):
+    '''
+   def get_filenames(self):
+        return [item.filename for item in self.item_list]
+
+    def get_points(self):
+        return [item.points.to(self.device) for item in self.item_list]
+
+    def get_plane_syms(self):
+        plane_syms = [item.plane_symmetries for item in self.item_list]
+        for i in range(len(plane_syms)):
+            if plane_syms[i] is not None:
+                plane_syms[i] = plane_syms[i].to(self.device)
+        return plane_syms
+
+    def get_axis_continue_syms(self):
+        axis_continue_syms = [item.axis_continue_symmetries for item in self.item_list]
+        for i in range(len(axis_continue_syms)):
+            if axis_continue_syms[i] is not None:
+                axis_continue_syms[i] = axis_continue_syms[i].to(self.device)
+        return axis_continue_syms
+
+    def get_axis_discrete_syms(self):
+        axis_discrete_symmetries = [item.axis_discrete_symmetries for item in self.item_list]
+        for i in range(len(axis_discrete_symmetries)):
+            if axis_discrete_symmetries[i] is not None:
+                axis_discrete_symmetries[i] = axis_discrete_symmetries[i].to(self.device)
+        return axis_discrete_symmetries
+
+    def get_shape_type_classification_labels(self):
+    '''
+
+    def _step(self, batch, batch_idx, step_tag):
         batch.device = self.device
         self.matcher.device = self.device
+        print(f'Batch[0]: {batch.get_filenames()[0]} - {batch.get_shape_type_classification_labels()[0]}')
+        print(f'Batch[0]: {batch.get_points()[0]}  - {batch.get_plane_syms()[0]}')
         points = torch.stack(batch.get_points())
         points = torch.transpose(points, 1, 2).float()
 
@@ -195,16 +237,33 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             loss += continue_axis_loss * self.w3
 
         self._log(loss, "loss", "total", step_tag, batch.size, prog_bar=True)
+
+        print(f'plane_predictions: {plane_predictions}')
+
+        if self.use_wandb:
+            wandb.log({'loss': loss, 'step': batch_idx})
+            wandb.log({'plane_loss': plane_loss, 'step': batch_idx})
+            if axis_discrete_predictions is not None:
+                wandb.log({'discrete_axis_loss': discrete_axis_loss, 'step': batch_idx})
+            if axis_continue_predictions is not None:
+                wandb.log({'continue_axis_loss': continue_axis_loss, 'step': batch_idx})
+            if batch_idx % 1000 == 0:
+                fn = batch.get_filenames()[0]
+                cl = batch.get_shape_type_classification_labels()[0]
+                cl = int(torch.argmax(cl))
+                cl = list(SHAPE_TYPE.keys())[list(SHAPE_TYPE.values()).index(cl)]
+                wandb_log_gpu(batch, preds=plane_predictions, filename=fn, shape_class=cl, loss=plane_loss, wandb_project="symmetry_visualization", init_and_finalize=False)
+
         return loss
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
-        return self._step(batch, "train")
+        return self._step(batch, batch_idx, "train")
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        return self._step(batch, "val")
+        return self._step(batch, batch_idx, "val")
 
     def test_step(self, batch, batch_idx):
-        return self._step(batch, "test")
+        return self._step(batch, batch_idx, "test")
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         batch.device = self.device
