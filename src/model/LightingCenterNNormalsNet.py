@@ -21,6 +21,7 @@ from src.model.matchers.cost_matrix_methods import calculate_cost_matrix_normals
 
 from src.dataset.SymDatasetItem import SHAPE_TYPE
 from src.model.wandb.render_shape import wandb_log_gpu
+from src.model.wandb.worst_losses_tracker import WorstLossesTracker
 
 class LightingCenterNNormalsNet(lightning.LightningModule):
     def __init__(self,
@@ -57,6 +58,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.w2 = w2
         self.w3 = w3
         self.use_wandb = use_wandb
+
+        self.worst_losses_tracker = WorstLossesTracker()		# dict with the worst losses (e.g. fn, loss, batch_idx, batch, tag)
 
         if plane_loss == "default":
             self.plane_loss = ReflectionSymmetryLoss(
@@ -137,7 +140,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
         if self.use_wandb:
             print(f'Using wandb')
-            wandb.init(project='symmetria-10k-easy-test')
+            wandb.init(project='symmetria-100k-hard-test')		# TODO: how the hell can I have a variable from config?!
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())
@@ -210,23 +213,57 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         #print(f'plane_predictions: {plane_predictions}')
 
         if self.use_wandb:
-            wandb.log({'loss': loss, 'step': batch_idx})
-            wandb.log({'plane_loss': plane_loss, 'step': batch_idx})
+            if False:						# use this for debugging purposes
+                if batch_idx % 101 == 0 and batch_idx > 0:
+                    self.send_worst_losses_to_wandb()
+
+            wandb.log({f'{step_tag}_loss': loss, 'step': batch_idx})
+
+            if plane_predictions is not None:
+                wandb.log({f'{step_tag}_plane_loss': plane_loss, 'step': batch_idx})
 
             if axis_discrete_predictions is not None:
-                wandb.log({'discrete_axis_loss': discrete_axis_loss, 'step': batch_idx})
+                wandb.log({f'{step_tag}_discrete_axis_loss': discrete_axis_loss, 'step': batch_idx})
 
             if axis_continue_predictions is not None:
-                wandb.log({'continue_axis_loss': continue_axis_loss, 'step': batch_idx})
+                wandb.log({f'{step_tag}_continue_axis_loss': continue_axis_loss, 'step': batch_idx})
+
+            fn, cl = self.get_fn_and_class(batch)
+            entry = {'fn': fn, 'loss': loss, 'batch_idx': batch_idx, 'batch': batch, 'train_val_test_tag': step_tag, 'class_id': cl,
+			'plane_predictions': plane_predictions,
+			'axis_discrete_predictions': axis_discrete_predictions, 'axis_continue_predictions': axis_continue_predictions}
+            self.worst_losses_tracker.add(entry=entry)
 
             if batch_idx % 1000 == 0:
-                fn = batch.get_filenames()[0]
-                cl = batch.get_shape_type_classification_labels()[0]
-                cl = int(torch.argmax(cl))
-                cl = list(SHAPE_TYPE.keys())[list(SHAPE_TYPE.values()).index(cl)]
-                wandb_log_gpu(batch, preds=plane_predictions, filename=fn, shape_class=cl, loss=plane_loss, wandb_project="symmetry_visualization", init_and_finalize=False)
+                wandb_log_gpu(batch, preds=plane_predictions, filename=fn, shape_class=cl, loss=loss, train_valid_test_tag=step_tag,
+				wandb_project="symmetry_visualization", init_and_finalize=False)
 
         return loss
+
+    def get_fn_and_class(self, batch):
+        fn = batch.get_filenames()[0]
+        cl = batch.get_shape_type_classification_labels()[0]
+        cl = int(torch.argmax(cl))
+        cl = list(SHAPE_TYPE.keys())[list(SHAPE_TYPE.values()).index(cl)]
+        return fn, cl
+
+    def send_worst_losses_to_wandb(self):
+        worst_losses = self.worst_losses_tracker.get_entries()
+        step_tag     = worst_losses[0]["train_val_test_tag"]
+        print(f'Epoch {self.current_epoch}: sending {len(worst_losses)} {step_tag} worst losses to WandB...')
+        for idx, entry in enumerate(worst_losses):
+            wandb.log({f'{step_tag}_epoch_{self.current_epoch}_top_losses': f'{idx}: {entry["loss"]} - {entry["class_id"]} - {entry["fn"]}'})
+            wandb_log_gpu(batch=entry['batch'], preds=entry['plane_predictions'], filename=entry['fn'], shape_class=entry['class_id'], loss=entry['loss'],
+				train_valid_test_tag=entry['train_val_test_tag'], wandb_project="symmetry_visualization", init_and_finalize=False)
+
+    def on_train_epoch_start(self):
+        self.worst_losses_tracker.empty()
+    def on_validation_epoch_start(self):
+        self.worst_losses_tracker.empty()
+    def on_train_epoch_end(self):
+        self.send_worst_losses_to_wandb()
+    def on_validation_epoch_end(self):
+        self.send_worst_losses_to_wandb()
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         return self._step(batch, batch_idx, "train")
