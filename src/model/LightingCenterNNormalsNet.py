@@ -44,7 +44,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
                  normalize_normals: bool = True,
                  encoder: str = "pointnet",
                  n_points: int = 8192,
-                 use_wandb: bool = True
+                 use_wandb: bool = True,
+                 worst_losses_max_entries: int = 20,
                  ):
         super().__init__()
         self.use_bn = use_bn
@@ -58,8 +59,9 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         self.w2 = w2
         self.w3 = w3
         self.use_wandb = use_wandb
+        self.worst_losses_max_entries = worst_losses_max_entries
 
-        self.worst_losses_tracker = WorstLossesTracker()		# dict with the worst losses (e.g. fn, loss, batch_idx, batch, tag)
+        self.worst_losses_tracker = WorstLossesTracker(max_entries=self.worst_losses_max_entries)	# dict with the worst losses (e.g. fn, loss, batch_idx, batch, tag)
 
         if plane_loss == "default":
             self.plane_loss = ReflectionSymmetryLoss(
@@ -140,7 +142,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
         if self.use_wandb:
             print(f'Using wandb')
-            wandb.init(project='symmetria-100k-hard-test')		# TODO: how the hell can I have a variable from config?!
+            wandb.init(project='symmetria-ablation-test')			# Variable from config inside `trainer` are available only after having called fit()
+            #print(f'Wandb initialized - config: {wandb.config}')
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())
@@ -176,9 +179,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         return loss, map, phc
 
     def _step(self, batch, batch_idx, step_tag):
-        if self.use_wandb and batch_idx == 0:
-            print(f'Renaming current run to: {self.trainer.logger.name}')
-            wandb.run.name = self.trainer.logger.name
+        if self.use_wandb and batch_idx == 0 and self.current_epoch == 0:
+            print(f'-= Renaming current run to: {self.trainer.logger.name} =-')
+            wandb.run.name    = self.trainer.logger.name
+            #wandb.run.project = 'symmetria-ablation-test-'+self.trainer.logger.name.split('-')[2] 		# (class name, e.g. 'astroid', 'citrus', etc.)
             wandb.run.save()
         batch.device = self.device
         self.matcher.device = self.device
@@ -225,6 +229,8 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
             if plane_predictions is not None:
                 wandb.log({f'{step_tag}_plane_loss': plane_loss, 'step': batch_idx})
+                wandb.log({f'{step_tag}_plane_map' : plane_map,  'step': batch_idx})
+                wandb.log({f'{step_tag}_plane_phc' : plane_phc,  'step': batch_idx})
 
             if axis_discrete_predictions is not None:
                 wandb.log({f'{step_tag}_discrete_axis_loss': discrete_axis_loss, 'step': batch_idx})
@@ -254,36 +260,24 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
     def send_worst_losses_to_wandb(self):
         worst_losses = self.worst_losses_tracker.get_entries()
         step_tag     = worst_losses[0]["train_val_test_tag"]
-        print(f'Epoch {self.current_epoch}: sending {len(worst_losses)} {step_tag} worst losses to WandB...')
+        print(f'Epoch {self.current_epoch}: sending {len(worst_losses)} {step_tag} worst losses to WandB...\n')
 
-        # assume a model has returned predictions on four images
-        # with the following fields available:
-        # - the image id
-        # - the image pixels, wrapped in a wandb.Image()
-        # - the model's predicted label
-        # - the ground truth label
-        '''
-        my_data = [
-            [0, wandb.Image("img_0.jpg"), 0, 0],
-            [1, wandb.Image("img_1.jpg"), 8, 0],
-            [2, wandb.Image("img_2.jpg"), 7, 1],
-            [3, wandb.Image("img_3.jpg"), 1, 1],
-        ]
-        '''
-        
         # create a wandb.Table() with corresponding columns
         #columns = ["id", "image", "prediction", "truth"]
-        columns = ["id", "top_loss_str", "str"]
+        columns = ["id", "loss", "fn", "class", "top_loss_str", "str"]
 
         worst_losses_list = []
 
         for idx, entry in enumerate(worst_losses):
             #wandb.log({f'{step_tag}_epoch_{self.current_epoch}_top_losses': f'{idx}: {entry["loss"]} - {entry["class_id"]} - {entry["fn"]}'})
             top_loss_str = f'{step_tag}_epoch_{self.current_epoch}_top_losses'
-            worst_losses_list.append([idx, top_loss_str, f'{idx}: {entry["loss"]} - {entry["class_id"]} - {entry["fn"]}'])
+            worst_losses_list.append([idx, f'{entry["loss"]:.2f}', f'{entry["fn"]}', f'{entry["class_id"]}',
+					top_loss_str, f'{idx}: {entry["loss"]:.2f} - {entry["class_id"]} - {entry["fn"]}'])	# TODO: this stuff here is almost useless now...
+
             wandb_log_gpu(batch=entry['batch'], preds=entry['plane_predictions'], filename=entry['fn'], shape_class=entry['class_id'], loss=entry['loss'],
 				train_valid_test_tag=top_loss_str, wandb_project="symmetry_visualization", init_and_finalize=False)
         test_table = wandb.Table(data=worst_losses_list, columns=columns)
+        wandb.log({f'{step_tag}_epoch_{self.current_epoch}_top_losses': test_table})
 
     def on_train_epoch_start(self):
         self.worst_losses_tracker.empty()
