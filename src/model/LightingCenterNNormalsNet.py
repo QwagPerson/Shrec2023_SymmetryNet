@@ -176,6 +176,10 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         return loss, map, phc
 
     def _step(self, batch, batch_idx, step_tag):
+        if self.use_wandb and batch_idx == 0:
+            print(f'Renaming current run to: {self.trainer.logger.name}')
+            wandb.run.name = self.trainer.logger.name
+            wandb.run.save()
         batch.device = self.device
         self.matcher.device = self.device
         #print(f'Batch[0]: {batch.get_filenames()[0]} - {batch.get_shape_type_classification_labels()[0]}')
@@ -251,10 +255,35 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         worst_losses = self.worst_losses_tracker.get_entries()
         step_tag     = worst_losses[0]["train_val_test_tag"]
         print(f'Epoch {self.current_epoch}: sending {len(worst_losses)} {step_tag} worst losses to WandB...')
+
+        # assume a model has returned predictions on four images
+        # with the following fields available:
+        # - the image id
+        # - the image pixels, wrapped in a wandb.Image()
+        # - the model's predicted label
+        # - the ground truth label
+        '''
+        my_data = [
+            [0, wandb.Image("img_0.jpg"), 0, 0],
+            [1, wandb.Image("img_1.jpg"), 8, 0],
+            [2, wandb.Image("img_2.jpg"), 7, 1],
+            [3, wandb.Image("img_3.jpg"), 1, 1],
+        ]
+        '''
+        
+        # create a wandb.Table() with corresponding columns
+        #columns = ["id", "image", "prediction", "truth"]
+        columns = ["id", "top_loss_str", "str"]
+
+        worst_losses_list = []
+
         for idx, entry in enumerate(worst_losses):
-            wandb.log({f'{step_tag}_epoch_{self.current_epoch}_top_losses': f'{idx}: {entry["loss"]} - {entry["class_id"]} - {entry["fn"]}'})
+            #wandb.log({f'{step_tag}_epoch_{self.current_epoch}_top_losses': f'{idx}: {entry["loss"]} - {entry["class_id"]} - {entry["fn"]}'})
+            top_loss_str = f'{step_tag}_epoch_{self.current_epoch}_top_losses'
+            worst_losses_list.append([idx, top_loss_str, f'{idx}: {entry["loss"]} - {entry["class_id"]} - {entry["fn"]}'])
             wandb_log_gpu(batch=entry['batch'], preds=entry['plane_predictions'], filename=entry['fn'], shape_class=entry['class_id'], loss=entry['loss'],
-				train_valid_test_tag=entry['train_val_test_tag'], wandb_project="symmetry_visualization", init_and_finalize=False)
+				train_valid_test_tag=top_loss_str, wandb_project="symmetry_visualization", init_and_finalize=False)
+        test_table = wandb.Table(data=worst_losses_list, columns=columns)
 
     def on_train_epoch_start(self):
         self.worst_losses_tracker.empty()
