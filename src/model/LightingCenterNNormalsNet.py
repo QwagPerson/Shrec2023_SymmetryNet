@@ -140,11 +140,6 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         # Honestly idk will leave it like this for now
         self.save_hyperparameters(ignore=["net"]) # , "plane_loss", "discrete_rotational_loss", "continue_rotational_loss"
 
-        if self.use_wandb:
-            print(f'Using wandb')
-            wandb.init(project='symmetria-ablation-test')			# Variable from config inside `trainer` are available only after having called fit()
-            #print(f'Wandb initialized - config: {wandb.config}')
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())
         return optimizer
@@ -180,6 +175,11 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
 
     def _step(self, batch, batch_idx, step_tag):
         if self.use_wandb and batch_idx == 0 and self.current_epoch == 0:
+            print(f'Using wandb')
+            #wandb.init(project='symmetria-ablation-test')		# Variable from config inside `trainer` are available only after having called fit()
+            wandb.init(project='-'.join(self.trainer.logger.name.split('-')[:6]))	# e.g. symmetria-ablation-noise-undersampling-cylinder-1000
+            #print(f'Wandb initialized - config: {wandb.config}')
+
             print(f'-= Renaming current run to: {self.trainer.logger.name} =-')
             wandb.run.name    = self.trainer.logger.name
             #wandb.run.project = 'symmetria-ablation-test-'+self.trainer.logger.name.split('-')[2] 		# (class name, e.g. 'astroid', 'citrus', etc.)
