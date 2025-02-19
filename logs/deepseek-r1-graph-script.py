@@ -20,7 +20,6 @@ CLIP_LOSS_AT = 5  # Clip loss at this value
 USE_EPOCHS = True  # Use epochs instead of steps for the x-axis
 
 # Columns to extract from the metrics.csv files
-'''
 columns_dict = {
 			'step':						[30, 'Samples'],
 			'epoch':					[ 1, 'Epoch'],
@@ -64,21 +63,6 @@ columns_dict = {
 
 			'total_val_loss_step':				[34, 'total_val_loss_step'],
 }
-'''
-'''
-'''
-columns_dict = {
-    'step': [30, 'Samples'],
-    'epoch': [1, 'Epoch'],
-    'plane_val_loss_epoch': [20, 'Loss'],
-    'plane_val_map_epoch': [26, 'mAP'],
-    'plane_val_phc_epoch': [28, 'PHC'],
-    'plane_val_loss_step': [25, 'Loss'],
-    'plane_val_map_step': [27, 'mAP'],
-    'plane_val_phc_step': [29, 'PHC'],
-}
-'''
-'''
 
 # Function to load metrics from a directory
 def load_metrics(directory):
@@ -101,13 +85,6 @@ def extract_data(df, use_epochs=True):
 		map_col  = 'plane_val_map_step'
 		phc_col  = 'plane_val_phc_step'
 
-	#print(f'{columns_dict[x_axis][0] = } - {columns_dict[loss_col][0] = } - {columns_dict[map_col][0] = } - {columns_dict[phc_col][0] = }')
-	'''
-	x    = df[columns_dict[x_axis][0]].values
-	loss = df[columns_dict[loss_col][0]].values
-	map_ = df[columns_dict[map_col][0]].values
-	phc  = df[columns_dict[phc_col][0]].values
-	'''
 	x    = df[x_axis].values
 	loss = df[loss_col].values
 	map_ = df[map_col].values
@@ -125,9 +102,6 @@ def extract_data(df, use_epochs=True):
 	map_ = map_[loss_non_null & map_non_null & phc_non_null]
 	phc  = phc[loss_non_null & map_non_null & phc_non_null]
 
-	print(f'{len(x) = } - {len(loss) = } - {len(map_) = } - {len(phc) = }')
-
-	print(f'{x[:5] = } - {loss[:5] = } - {map_[:5] = } - {phc[:5]= }')
 	return x, loss, map_, phc
 
 # Function to plot 3D graphs
@@ -178,8 +152,6 @@ def process_experiment_group(experiment_group, debug=False, max_points=10):
 		#if os.path.exists(class_dir):
 		experiment_class = Path(experiment_group) / class_name
 		if (experiment_class).is_dir():
-			#for run_idx, run_dir in enumerate(os.listdir(str(experiment_class))):
-			#for root, dirs, files in experiment_class.walk():
 			for root, dirs, files in os.walk(str(experiment_class)):		#, topdown=False):
 				if debug:
 					print(f'{root = } - {dirs = } - {files = }')
@@ -188,7 +160,6 @@ def process_experiment_group(experiment_group, debug=False, max_points=10):
 					experiment_run = Path(experiment_class) / run_dir
 					if experiment_run.is_dir():
 						print(f'Loading metrics in {run_dir}...')
-						#run_path = os.path.join(class_dir, run_dir, 'version_0')
 						run_path = experiment_run / 'version_0'
 						df = load_metrics(run_path)
 						if df is not None:
