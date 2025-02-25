@@ -10,7 +10,7 @@ import colorsys
 from scipy.ndimage.filters import gaussian_filter1d
 
 # Configuration
-EXPERIMENT_GROUPS = ['rotations', 'noise-undersampling']
+EXPERIMENT_GROUPS = ['rotations-2k-samples', 'noise-undersampling-2k-samples']
 CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 
            'lemniscate', 'm_convexities', 'mouth_curve', 'revolution', 'square']
 BASE_DIR = '../../logs'
@@ -20,7 +20,7 @@ SMOOTH_SIGMA = 2
 
 def parse_run_name(run_name, experiment_group):
 	parts = run_name.split('-')
-	if experiment_group == 'noise-undersampling':
+	if 'noise-undersampling' in experiment_group:
 		class_name = parts[4]
 		transform_prob = None
 		transform_type = None
@@ -34,7 +34,7 @@ def parse_run_name(run_name, experiment_group):
 			'prob': transform_prob,
 			'type': transform_type
 		}
-	elif experiment_group == 'rotations':
+	elif 'rotations' in experiment_group:
 		class_name = parts[2]
 		rot_prob = None
 		axes = []
@@ -54,7 +54,7 @@ def parse_run_name(run_name, experiment_group):
 	return friendly_name, params
 
 def get_color(experiment_group, params):
-	if experiment_group == 'rotations':
+	if 'rotations' in experiment_group:
 		prob		= params['prob']
 		axes		= params['axes']
 		color_var	= axes
@@ -76,7 +76,7 @@ def get_color(experiment_group, params):
 			r, g, b = colorsys.hsv_to_rgb(hue/360, saturation, value)
 			return (r, g, b)
 		'''
-	elif experiment_group == 'noise-undersampling':
+	elif 'noise-undersampling' in experiment_group:
 		prob		= params['prob']
 		transform_type	= params['type']
 		color_var	= transform_type
@@ -106,11 +106,11 @@ def get_color(experiment_group, params):
 		return (0.2, 0.2, 0.2)  # Gray
 	else:
 		if color_var == possibilities[0]:
-			hue = 0  # Red
+			hue = 120  # Green
 		elif color_var == possibilities[1]:
 			hue = 240  # Blue
 		elif color_var == possibilities[2]:
-			hue = 120  # Green
+			hue = 0  # Red
 		else:
 			hue = 180  # Cyan for others
 		#value = 0.5 + 0.5 * (prob / 1.0)
@@ -129,19 +129,22 @@ def load_metrics(metrics_file):
 def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1):
 	class_dir = Path(BASE_DIR) / experiment_group / class_name
 	if not class_dir.exists():
+		print(f'No runs found for {experiment_group} - {class_name} in {class_dir}')
 		return
 
 	runs = []
 	for run_dir in class_dir.iterdir():
 		if not run_dir.is_dir():
 			continue
-		print(f'Processing run: {run_dir}...')
+		print(f'Collecting run: {run_dir}...')
 		if run_dir.is_dir() and run_dir.name.startswith('symmetria-ablation'):
 			runs.append(run_dir)
 
 	if not runs:
 		print(f'No runs found for {experiment_group} - {class_name}')
 		return
+	else:
+		print(f'Found {len(runs)} runs for {experiment_group} - {class_name}')
 
 	fig, (ax_loss, ax_map, ax_phc) = plt.subplots(1, 3, figsize=(18, 6))
 	fig.suptitle(f"Experiment: {experiment_group}, Class: {class_name}")
@@ -217,8 +220,8 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 
 
 		line, = ax_loss.plot(x, loss_filtered, color=color, linewidth=3)
-		ax_map.plot(x, map_filtered, color=color)
-		ax_phc.plot(x, phc_filtered, color=color)
+		ax_map.plot(x,		map_filtered,  color=color, linewidth=3)
+		ax_phc.plot(x,		phc_filtered,  color=color, linewidth=3)
 
 		handles.append(line)
 		labels.append(friendly_name)
