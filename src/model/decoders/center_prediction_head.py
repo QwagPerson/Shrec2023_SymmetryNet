@@ -24,6 +24,6 @@ class CenterPredictionHead(nn.Module):
     def forward(self, x):
         """
         :param x: B x C
-        :return: y: B x 4
+        :return: y: B x 3
         """
         return self.decoder_head(x)

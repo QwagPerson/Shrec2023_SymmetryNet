@@ -9,6 +9,8 @@ from src.model.encoders.PointNetPlusPlusEncoder import PointNetPlusPlusEncoder
 from src.model.encoders.VNPointNetEncoder import VNPointNetEncoder
 from src.model.encoders.pointnet_encoder import PointNetEncoder
 
+from src.model.encoders.pointnext.pointnext_encoder_parameters import *
+from src.model.encoders.pointnext.pointnext_encoder import PointNeXt
 
 class CenterNNormalsNet(nn.Module):
     def __init__(
@@ -47,8 +49,16 @@ class CenterNNormalsNet(nn.Module):
         elif encoder == "VNPointNet":
             self.encoder = VNPointNetEncoder()
             self.encoder_output_size = 1023
+        elif "PointNeXt" in encoder:
+            if encoder in POINTNEXT_MODEL_CONFIG:
+                model_cfg = POINTNEXT_MODEL_CONFIG[encoder]	# 'PointNeXt_B' (21.5 M), 'PointNeXt_L2' (32.0 M), 'PointNeXt_XXL' (73.8 M)
+                self.encoder = PointNeXt(model_cfg)
+                self.encoder_output_size = 1024
+                print(f"Using PointNeXt {model_cfg} - encoder: {self.encoder}")
+            else:
+                raise ValueError("PointNeXt encoder not supported")
         else:
-            raise ValueError("Encoder no soportado")
+            raise ValueError("Encoder not supported")
 
         # nx ny nz & confidence
         self.plane_normals_heads = nn.ModuleList(
