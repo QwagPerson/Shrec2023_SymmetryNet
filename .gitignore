@@ -1,2 +1,6 @@
 /models/
 /trash/
+/wandb/
+/logs/
+*.pyc
+.polyscope.ini
