@@ -53,7 +53,7 @@ class CenterNNormalsNet(nn.Module):
             if encoder in POINTNEXT_MODEL_CONFIG:
                 model_cfg = POINTNEXT_MODEL_CONFIG[encoder]	# 'PointNeXt_B' (21.5 M), 'PointNeXt_L2' (32.0 M), 'PointNeXt_XXL' (73.8 M)
                 self.encoder = PointNeXt(model_cfg)
-                self.encoder_output_size = 1024
+                self.encoder_output_size = 1024			# because of the adapter head (e.g. 2048 -> 1024) within the encoder
                 print(f"Using PointNeXt {model_cfg} - encoder: {self.encoder}")
             else:
                 raise ValueError("PointNeXt encoder not supported")

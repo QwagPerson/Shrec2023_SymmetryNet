@@ -150,6 +150,13 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
     ):
         self.log(f"{sym_tag}_{step_tag}_{metric_name}", metric_val, on_step=on_step, on_epoch=on_epoch,
                  prog_bar=prog_bar, batch_size=batch_size, sync_dist=sync_dist)
+        '''
+        if self.use_wandb:
+            wandb.log(f"{sym_tag}_{step_tag}_{metric_name}", metric_val, on_step=on_step, on_epoch=on_epoch,
+                 prog_bar=prog_bar, batch_size=batch_size, sync_dist=sync_dist)
+            wandb.log({f'plane_val_map_epoch': loss, 'epoch': self.current_epoch})
+            wandb.log({f'plane_val_phc_epoch': loss, 'epoch': self.current_epoch})
+        '''
 
     def _process_prediction(self,
                             batch, sym_pred, sym_true,
@@ -260,7 +267,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
     def send_worst_losses_to_wandb(self):
         worst_losses = self.worst_losses_tracker.get_entries()
         step_tag     = worst_losses[0]["train_val_test_tag"]
-        print(f'Epoch {self.current_epoch}: sending {len(worst_losses)} {step_tag} worst losses to WandB...\n')
+        print(f'Epoch {self.current_epoch}: sending {len(worst_losses)} {step_tag} worst losses to WandB...\n', flush=True)
 
         # create a wandb.Table() with corresponding columns
         #columns = ["id", "image", "prediction", "truth"]
@@ -280,13 +287,47 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
         wandb.log({f'{step_tag}_epoch_{self.current_epoch}_top_losses': test_table})
 
     def on_train_epoch_start(self):
-        self.worst_losses_tracker.empty()
+        if self.use_wandb:
+            self.worst_losses_tracker.empty()
+            #print(f'self.val_los
     def on_validation_epoch_start(self):
-        self.worst_losses_tracker.empty()
+        if self.use_wandb:
+            self.worst_losses_tracker.empty()
     def on_train_epoch_end(self):
-        self.send_worst_losses_to_wandb()
+        if self.use_wandb:
+            self.send_worst_losses_to_wandb()
+            #print(f'{self.trainer.logs["val"]["map"]:.2f}', flush=True)	# TODO: .logged_metrics
+            #print(f'{self.trainer.logs["val"]["map"]:.2f}', flush=True)	# TODO: .logged_metrics
+            #wandb.log({f'plane_val_map_epoch': loss, 'epoch': self.current_epoch})
+            #wandb.log({f'plane_val_phc_epoch': loss, 'epoch': self.current_epoch})
     def on_validation_epoch_end(self):
-        self.send_worst_losses_to_wandb()
+        if self.use_wandb:
+            self.send_worst_losses_to_wandb()
+            '''
+            print(f'{self.current_epoch = }')
+            print(f'{self.trainer.callback_metrics = }')
+            if 'val_loss' in self.trainer.callback_metrics:
+                val_loss_epoch = self.trainer.callback_metrics["val_loss"]
+            if 'val_loss_epoch' in self.trainer.callback_metrics:
+                val_loss_epoch = self.trainer.callback_metrics["val_loss_epoch"]
+            print(f"{val_loss_epoch = }")
+            wandb.log({f'val_loss_epoch ': val_loss_epoch , 'epoch': self.current_epoch})
+            '''
+            if True:						# use this for debugging purposes
+                print(f'{self.trainer.callback_metrics = }')
+            total_val_loss_epoch = self.trainer.callback_metrics["total_val_loss_epoch"]
+            wandb.log({f'total_val_loss_epoch': total_val_loss_epoch, 'epoch': self.current_epoch})
+            if 'plane_val_map_epoch' in self.trainer.callback_metrics:
+                plane_val_map_epoch = self.trainer.callback_metrics["plane_val_map_epoch"]
+                wandb.log({f'plane_val_map_epoch': plane_val_map_epoch, 'epoch': self.current_epoch})
+            if 'plane_val_phc_epoch' in self.trainer.callback_metrics:
+                plane_val_phc_epoch = self.trainer.callback_metrics["plane_val_phc_epoch"]
+                wandb.log({f'plane_val_phc_epoch': plane_val_phc_epoch, 'epoch': self.current_epoch})
+            '''
+            if hasattr(self, 'validation_step_outputs'):
+                print(f'{self.validation_step_outputs} = ')
+                sys.exit(1)
+            '''
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         return self._step(batch, batch_idx, "train")

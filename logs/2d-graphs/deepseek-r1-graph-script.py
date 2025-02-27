@@ -10,9 +10,13 @@ import colorsys
 from scipy.ndimage.filters import gaussian_filter1d
 
 # Configuration
-EXPERIMENT_GROUPS = ['rotations-2k-samples', 'noise-undersampling-2k-samples']
+#EXPERIMENT_GROUPS = ['rotations-2k-samples', 'noise-undersampling-2k-samples']
+EXPERIMENT_GROUPS = ['pointnext-rotations-2k-samples']
+'''
 CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 
            'lemniscate', 'm_convexities', 'mouth_curve', 'revolution', 'square']
+'''
+CLASSES = ['m_convexities']
 BASE_DIR = '../../logs'
 CLIP_LOSS_AT = 2  # Clip loss at this value
 #USE_EPOCHS = True  # Use epochs instead of steps for the x-axis

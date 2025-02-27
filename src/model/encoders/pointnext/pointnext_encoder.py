@@ -13,6 +13,7 @@ class PointNeXt(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.type = cfg['type']
+        self.create_adapter = cfg['create_adapter']
         if self.type != 'symmetry-regression':
             self.num_class = cfg['num_class']
         self.coor_dim = cfg['coor_dim']
@@ -43,7 +44,10 @@ class PointNeXt(nn.Module):
                 width = width // 2
         if self.type == 'symmetry-regression':
             # we need an adapter layer that brings us to 1024 activations (to be backward compatible with PointNet)
-            self.head = build_mlp(in_channel=width, channel_list=[width // adapter_div], dim=1)
+            if self.create_adapter:
+                self.head = build_mlp(in_channel=width, channel_list=[width // adapter_div], dim=1)
+            else:
+                self.head = None
         else:
             self.head = Head(in_channel=width, mlp=cfg['head'], num_class=self.num_class, task_type=self.type)
 
@@ -67,9 +71,11 @@ class PointNeXt(nn.Module):
                 record[-i-2][1] = decoder(record[-i-2][0], record[-i-1][0], record[-i-2][1], record[-i-1][1])
             points_cls = self.head(record[0][1])
         elif self.type == 'symmetry-regression':
-            points_cls = self.head(record[-1][1])
-            points_cls = points_cls.reshape(-1, 1024)
-            #points_cls =  record[-1][1]
+            if self.create_adapter:
+                points_cls = self.head(record[-1][1])
+                points_cls = points_cls.reshape(-1, 1024)
+            else:
+                points_cls =  record[-1][1].reshape(-1, 1024)
         else:	# classification
             points_cls = self.head(record[-1][1])
         if debug:

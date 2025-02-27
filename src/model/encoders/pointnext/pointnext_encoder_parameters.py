@@ -93,6 +93,7 @@ PointNeXt_B = {
     'width': 32,
     #'width': 64,
     'expansion': 4,
+    'create_adapter': True,	# enable/disable adapter (both in __init__ and forward)
     'adapter_div': 4,
     'normal': False,
     #'head': [512, 256]
@@ -112,6 +113,7 @@ PointNeXt_L2 = {
     'width': 32,
     #'width': 64,
     'expansion': 4,
+    'create_adapter': True,	# enable/disable adapter (both in __init__ and forward)
     'adapter_div': 8,
     'normal': False,
     #'head': [512, 256]
@@ -130,6 +132,7 @@ PointNeXt_XXL = {
     #'width': 32,
     'width': 64,
     'expansion': 4,
+    'create_adapter': True,	# enable/disable adapter (both in __init__ and forward)
     'adapter_div': 16,
     'normal': False,
     #'head': [512, 256]

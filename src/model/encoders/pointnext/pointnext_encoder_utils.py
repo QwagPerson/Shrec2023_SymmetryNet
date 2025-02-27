@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 def build_mlp(in_channel, channel_list, dim=2, bias=False, drop_last_act=False,
-              drop_last_norm_act=False, dropout=False):
+              drop_last_norm_act=False, dropout=False, batch_norm=False):
     """
     构造基于n dim 1x1卷积的mlp
     :param in_channel: <int> 特征维度的输入值
@@ -30,7 +30,8 @@ def build_mlp(in_channel, channel_list, dim=2, bias=False, drop_last_act=False,
             mlp.append(nn.Dropout(0.5, inplace=False))
         # 每层为conv-bn-relu
         mlp.append(Conv(in_channels=in_channel, out_channels=channel, kernel_size=1, bias=bias))
-        mlp.append(NORM(channel))
+        if batch_norm:
+            mlp.append(NORM(channel))
         mlp.append(ACT(inplace=True))
         if i < len(channel_list) - 1:
             in_channel = channel
