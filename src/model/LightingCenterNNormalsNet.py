@@ -313,7 +313,7 @@ class LightingCenterNNormalsNet(lightning.LightningModule):
             print(f"{val_loss_epoch = }")
             wandb.log({f'val_loss_epoch ': val_loss_epoch , 'epoch': self.current_epoch})
             '''
-            if True:						# use this for debugging purposes
+            if False:						# use this for debugging purposes
                 print(f'{self.trainer.callback_metrics = }')
             total_val_loss_epoch = self.trainer.callback_metrics["total_val_loss_epoch"]
             wandb.log({f'total_val_loss_epoch': total_val_loss_epoch, 'epoch': self.current_epoch})
