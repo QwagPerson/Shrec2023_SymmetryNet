@@ -19,13 +19,12 @@ CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal',
 CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 'lemniscate', ]
 BASE_DIR = '../../logs'
 CLIP_LOSS_AT = 2  # Clip loss at this value
-#USE_EPOCHS = True  # Use epochs instead of steps for the x-axis
 SMOOTH_SIGMA = 2
 
 def parse_run_name(run_name, experiment_group):
 	parts = run_name.split('-')
 	if 'noise-undersampling' in experiment_group:
-		#class_name = parts[4]
+		# e.g. symmetria-ablation-noise-undersampling-2k-samples-astroid-2000-transform_prob-1.0-transform-gaussian
 		transform_prob = None
 		transform_type = None
 		for i in range(len(parts)):
@@ -33,7 +32,6 @@ def parse_run_name(run_name, experiment_group):
 				transform_prob = float(parts[i+1])
 			if parts[i] == 'transform' and i+1 < len(parts):
 				transform_type = parts[i+1]
-		#friendly_name = f"{class_name}-prob={transform_prob}-{transform_type}"
 		friendly_name = f"Transform prob. {transform_prob} - {transform_type}" if transform_prob > 0.0 else f"Transform prob. {transform_prob} (clean)"
 		params = {
 			'prob': transform_prob,
@@ -51,7 +49,6 @@ def parse_run_name(run_name, experiment_group):
 				state = parts[i+1]
 				if state == 'true':
 					axes.append(axis.replace('rot', ''))
-					#print(f'axis: {axis.replace("rot", "")}, state: {state}, axes: {axes}')
 		friendly_name = f"Rotation prob. {rot_prob} - axes: {', '.join(axes)}" if axes else f"Rotation prob. {rot_prob} (clean)"
 		params = {
 			'prob': rot_prob,
@@ -59,7 +56,6 @@ def parse_run_name(run_name, experiment_group):
 		}
 	elif 'rotations' in experiment_group:
 		# e.g. symmetria-ablation-rotations-2k-samples-astroid-2000-rotprob-0.8-rotx-true-roty-true-rotz-false
-		#class_name = parts[2]
 		rot_prob = None
 		axes = []
 		for i in range(len(parts)):
@@ -70,7 +66,6 @@ def parse_run_name(run_name, experiment_group):
 				state = parts[i+1]
 				if state == 'true':
 					axes.append(axis.replace('rot', ''))
-		#friendly_name = f"{class_name}-prob={rot_prob}-{'-'.join(axes)}" if axes else f"{class_name}-prob={rot_prob}"
 		friendly_name = f"Rotation prob. {rot_prob} - axes: {','.join(axes)}" if axes else f"Rotation prob. {rot_prob} (clean)"
 		params = {
 			'prob': rot_prob,
@@ -92,46 +87,11 @@ def get_color(experiment_group, params):
 		axes		= params['axes']
 		color_var	= axes
 		variations	= [['x'], ['x', 'y'], ['x', 'y', 'z']]
-		'''
-		if prob == 0.0:
-			return (0.5, 0.5, 0.5)  # Gray for baseline
-		else:
-			if axes == ['rotx']:
-				hue = 0    # Red
-			elif axes == ['rotx', 'roty']:
-				hue = 120  # Green
-			elif axes == ['rotx', 'roty', 'rotz']:
-				hue = 240  # Blue
-			else:
-				hue = 180  # Cyan for others
-			value      = 0.2 + 0.8 * (prob / 1.0)
-			saturation = 0.5 + 0.5 * (prob / 1.0)
-			r, g, b = colorsys.hsv_to_rgb(hue/360, saturation, value)
-			return (r, g, b)
-		'''
 	elif 'noise-undersampling' in experiment_group:
 		prob		= params['prob']
 		transform_type	= params['type']
 		color_var	= transform_type
 		variations	= ['undersampling', 'gaussian', 'uniform']
-		'''
-		if transform_type == 'clean':
-			return (0.5, 0.5, 0.5)  # Gray
-		else:
-			if transform_type == 'gaussian':
-				hue = 0  # Red
-			elif transform_type == 'undersampling':
-				hue = 240  # Blue
-			elif transform_type == 'uniform':
-				hue = 120  # Green
-			else:
-				hue = 180  # Cyan for others
-			#value = 0.5 + 0.5 * (prob / 1.0)
-			value      = 0.2 + 0.8 * (prob / 1.0)
-			saturation = 0.5 + 0.5 * (prob / 1.0)
-			r, g, b = colorsys.hsv_to_rgb(hue/360, saturation, value)
-			return (r, g, b)
-		'''
 	else:
 		return (0, 0, 0)  # Fallback
 
@@ -146,7 +106,6 @@ def get_color(experiment_group, params):
 			hue = 0  # Red
 		else:
 			hue = 180  # Cyan for others
-		#value = 0.5 + 0.5 * (prob / 1.0)
 		value      = 0.1 + 0.9 * prob
 		saturation = 0.5 + 0.5 * prob
 		r, g, b = colorsys.hsv_to_rgb(hue/360, saturation, value)
@@ -182,20 +141,6 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 	fig, (ax_loss, ax_map, ax_phc) = plt.subplots(1, 3, figsize=(18, 6))
 	fig.suptitle(f"Experiment: {experiment_group}, Class: {class_name}")
 
-	'''
-	for ax_idx, ax in enumerate([ax_loss, ax_map, ax_phc]):
-		ax.set_xlabel('Epochs')
-		ax.grid(True)
-		if ax_idx == 0:
-			ax.set_ylim(-0.05, 1.05)
-		else:
-			#max_y_val = max(ax.get_ylim()[1] for ax in [ax_loss, ax_map, ax_phc])
-			max_y_val = np.max(y_vals) if max_y_val < np.max(y_vals) else max_y_val
-			#ax.set_ylim(-0.01*max_y_val, max_y_val + 0.01*max_y_val)
-			ax.set_ylim(-0.004*max_y_val, max_y_val + 0.01*max_y_val)
-		#plt.ylim(-0.004*max_y_val, max_y_val + 0.01*max_y_val)
-	'''
-
 	ax_loss.set_ylabel('Validation Loss'+ f' (clipped at {CLIP_LOSS_AT})' if CLIP_LOSS_AT > 0 else '')
 	ax_map.set_ylabel('Val. mAP')
 	ax_phc.set_ylabel('Val. PHC')
@@ -205,8 +150,6 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 	if 'noise-undersampling' in str(runs[0]):
 		runs = sorted(runs, key=lambda x: str(x).split('-')[-1])
 	else:
-		#runs = sorted(runs, key=lambda x: '-'.join(str(x).split('-')[-1]))
-		#runs = sorted(runs, key=lambda x: str(x).split('-')[-1])
 		runs = sorted(runs, key=lambda x: parse_run_name(str(x), experiment_group)[1]['axes'])
 
 	max_loss_vals = [-1] * len(runs)
@@ -247,10 +190,7 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 			map_filtered  = gaussian_filter1d(map_filtered , sigma=smooth_sigma)
 			phc_filtered  = gaussian_filter1d(phc_filtered , sigma=smooth_sigma)
 
-		#max_loss_vals[run_idx] = np.max(loss) if max_loss_vals[run_idx] < np.max(loss) else max_loss_vals[run_idx]
 		max_loss_vals[run_idx] = np.max(loss_filtered)
-		#print(f'{max_loss_vals[run_idx] = }')
-
 
 		line, = ax_loss.plot(x, loss_filtered, color=color, linewidth=3)
 		ax_map.plot(x,		map_filtered,  color=color, linewidth=3)
@@ -263,15 +203,12 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 		ax.set_xlabel('Epochs')
 		ax.grid(True)
 		if ax_idx == 0:
-			#max_y_val = max(ax.get_ylim()[1] for ax in [ax_loss, ax_map, ax_phc])
-			#ax.set_ylim(-0.01*max_y_val, max_y_val + 0.01*max_y_val)
 			if clip_loss_at > 0:
 				ax.set_ylim(-0.004, clip_loss_at + 0.01*clip_loss_at)
 			else:
 				ax.set_ylim(-0.004, max_loss_vals[ax_idx] + 0.01*max_loss_vals[ax_idx])
 		else:
 			ax.set_ylim(-0.05, 1.05)
-		#plt.ylim(-0.004*max_y_val, max_y_val + 0.01*max_y_val)
 
 	fig.legend(handles, labels, bbox_to_anchor=(1.05, 1), loc='upper left', title='Runs')
 	plt.tight_layout()
