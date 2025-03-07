@@ -10,13 +10,13 @@ import colorsys
 from scipy.ndimage.filters import gaussian_filter1d
 
 # Configuration
-#EXPERIMENT_GROUPS = ['rotations-2k-samples', 'noise-undersampling-2k-samples']
-EXPERIMENT_GROUPS = ['pointnext-rotations-2k-samples']
+EXPERIMENT_GROUPS = ['rotations-2k-samples', 'noise-undersampling-2k-samples', 'PointNeXt_XXL-rotations-2k-samples']
+#EXPERIMENT_GROUPS = ['PointNeXt_XXL-rotations-2k-samples']
 '''
 CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 
            'lemniscate', 'm_convexities', 'mouth_curve', 'revolution', 'square']
 '''
-CLASSES = ['m_convexities']
+CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 'lemniscate', ]
 BASE_DIR = '../../logs'
 CLIP_LOSS_AT = 2  # Clip loss at this value
 #USE_EPOCHS = True  # Use epochs instead of steps for the x-axis
@@ -25,7 +25,7 @@ SMOOTH_SIGMA = 2
 def parse_run_name(run_name, experiment_group):
 	parts = run_name.split('-')
 	if 'noise-undersampling' in experiment_group:
-		class_name = parts[4]
+		#class_name = parts[4]
 		transform_prob = None
 		transform_type = None
 		for i in range(len(parts)):
@@ -33,13 +33,14 @@ def parse_run_name(run_name, experiment_group):
 				transform_prob = float(parts[i+1])
 			if parts[i] == 'transform' and i+1 < len(parts):
 				transform_type = parts[i+1]
-		friendly_name = f"{class_name}-prob={transform_prob}-{transform_type}"
+		#friendly_name = f"{class_name}-prob={transform_prob}-{transform_type}"
+		friendly_name = f"Transform prob. {transform_prob} - {transform_type}" if transform_prob > 0.0 else f"Transform prob. {transform_prob} (clean)"
 		params = {
 			'prob': transform_prob,
 			'type': transform_type
 		}
-	elif 'rotations' in experiment_group:
-		class_name = parts[2]
+	elif 'PointNeXt_XXL' in experiment_group:
+		# e.g. symmetria-ablation-PointNeXt_XXL-rotations-2k-samples-lemniscate-2000-rotprob-0.4-rotx-true-roty-true-rotz-true
 		rot_prob = None
 		axes = []
 		for i in range(len(parts)):
@@ -49,20 +50,48 @@ def parse_run_name(run_name, experiment_group):
 				axis = parts[i]
 				state = parts[i+1]
 				if state == 'true':
-					axes.append(axis)
-		friendly_name = f"{class_name}-prob={rot_prob}-{'-'.join(axes)}" if axes else f"{class_name}-prob={rot_prob}"
+					axes.append(axis.replace('rot', ''))
+					#print(f'axis: {axis.replace("rot", "")}, state: {state}, axes: {axes}')
+		friendly_name = f"Rotation prob. {rot_prob} - axes: {', '.join(axes)}" if axes else f"Rotation prob. {rot_prob} (clean)"
 		params = {
 			'prob': rot_prob,
 			'axes': axes
 		}
+	elif 'rotations' in experiment_group:
+		# e.g. symmetria-ablation-rotations-2k-samples-astroid-2000-rotprob-0.8-rotx-true-roty-true-rotz-false
+		#class_name = parts[2]
+		rot_prob = None
+		axes = []
+		for i in range(len(parts)):
+			if parts[i] == 'rotprob':
+				rot_prob = float(parts[i+1])
+			if parts[i].startswith('rot') and parts[i] != 'rotprob' and i+1 < len(parts):
+				axis = parts[i]
+				state = parts[i+1]
+				if state == 'true':
+					axes.append(axis.replace('rot', ''))
+		#friendly_name = f"{class_name}-prob={rot_prob}-{'-'.join(axes)}" if axes else f"{class_name}-prob={rot_prob}"
+		friendly_name = f"Rotation prob. {rot_prob} - axes: {','.join(axes)}" if axes else f"Rotation prob. {rot_prob} (clean)"
+		params = {
+			'prob': rot_prob,
+			'axes': axes
+		}
+	else:
+		friendly_name = run_name
+		params = {}
 	return friendly_name, params
 
 def get_color(experiment_group, params):
-	if 'rotations' in experiment_group:
+	if 'PointNeXt_XXL' in experiment_group:
 		prob		= params['prob']
 		axes		= params['axes']
 		color_var	= axes
-		possibilities	= [['rotx'], ['rotx', 'roty'], ['rotx', 'roty', 'rotz']]
+		variations	= [['x'], ['x', 'y'], ['x', 'y', 'z']]
+	elif 'rotations' in experiment_group:
+		prob		= params['prob']
+		axes		= params['axes']
+		color_var	= axes
+		variations	= [['x'], ['x', 'y'], ['x', 'y', 'z']]
 		'''
 		if prob == 0.0:
 			return (0.5, 0.5, 0.5)  # Gray for baseline
@@ -84,7 +113,7 @@ def get_color(experiment_group, params):
 		prob		= params['prob']
 		transform_type	= params['type']
 		color_var	= transform_type
-		possibilities	= ['gaussian', 'undersampling', 'uniform']
+		variations	= ['undersampling', 'gaussian', 'uniform']
 		'''
 		if transform_type == 'clean':
 			return (0.5, 0.5, 0.5)  # Gray
@@ -109,11 +138,11 @@ def get_color(experiment_group, params):
 	if prob == 0.0:
 		return (0.2, 0.2, 0.2)  # Gray
 	else:
-		if color_var == possibilities[0]:
+		if color_var == variations[0]:
 			hue = 120  # Green
-		elif color_var == possibilities[1]:
+		elif color_var == variations[1]:
 			hue = 240  # Blue
-		elif color_var == possibilities[2]:
+		elif color_var == variations[2]:
 			hue = 0  # Red
 		else:
 			hue = 180  # Cyan for others
@@ -167,9 +196,9 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 		#plt.ylim(-0.004*max_y_val, max_y_val + 0.01*max_y_val)
 	'''
 
-	ax_loss.set_ylabel('Loss'+ f' (clipped at {CLIP_LOSS_AT})' if CLIP_LOSS_AT > 0 else '')
-	ax_map.set_ylabel('mAP')
-	ax_phc.set_ylabel('PHC')
+	ax_loss.set_ylabel('Validation Loss'+ f' (clipped at {CLIP_LOSS_AT})' if CLIP_LOSS_AT > 0 else '')
+	ax_map.set_ylabel('Val. mAP')
+	ax_phc.set_ylabel('Val. PHC')
 
 	handles, labels = [], []
 
