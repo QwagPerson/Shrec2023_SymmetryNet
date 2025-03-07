@@ -3,6 +3,7 @@
 import os
 import pandas as pd
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from pathlib import Path
 import colorsys
@@ -20,6 +21,7 @@ CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 'l
 BASE_DIR = '../../logs'
 CLIP_LOSS_AT = 2  # Clip loss at this value
 SMOOTH_SIGMA = 2
+ENABLE_NOISE_UNDERSAMPLING_DASHED_LINES = False
 
 def parse_run_name(run_name, experiment_group):
 	parts = run_name.split('-')
@@ -96,7 +98,9 @@ def get_color(experiment_group, params):
 		return (0, 0, 0)  # Fallback
 
 	if prob == 0.0:
-		return (0.2, 0.2, 0.2)  # Gray
+		#return (0.2, 0.2, 0.2)  # Gray
+		# for name, hex in matplotlib.colors.cnames.items():
+		return '#DDB700' # a darker gold
 	else:
 		if color_var == variations[0]:
 			hue = 120  # Green
@@ -139,7 +143,13 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 		print(f'Found {len(runs)} runs for {experiment_group} - {class_name}')
 
 	fig, (ax_loss, ax_map, ax_phc) = plt.subplots(1, 3, figsize=(18, 6))
-	fig.suptitle(f"Experiment: {experiment_group}, Class: {class_name}")
+	if 'noise-undersampling' in str(runs[0]):
+		exp_title = f"noise/undersampling (PointNet) - 2k samples"
+	elif 'PointNeXt_XXL' in str(runs[0]):
+		exp_title = f"rotations (PointNeXt XXL) - 2k samples"
+	else:
+		exp_title = f"rotations (PointNet) - 2k samples"
+	fig.suptitle(f"Experiment: {exp_title}, Class: {class_name}")
 
 	ax_loss.set_ylabel('Validation Loss'+ f' (clipped at {CLIP_LOSS_AT})' if CLIP_LOSS_AT > 0 else '')
 	ax_map.set_ylabel('Val. mAP')
@@ -148,9 +158,12 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 	handles, labels = [], []
 
 	if 'noise-undersampling' in str(runs[0]):
-		runs = sorted(runs, key=lambda x: str(x).split('-')[-1])
+		tmp_runs = sorted(runs, key=lambda x: str(x).split('-')[-1])
 	else:
-		runs = sorted(runs, key=lambda x: parse_run_name(str(x), experiment_group)[1]['axes'])
+		tmp_runs = sorted(runs, key=lambda x: parse_run_name(str(x), experiment_group)[1]['axes'])
+
+	runs = tmp_runs[1:]
+	runs.append(tmp_runs[0])		# we want the "clean" run to be last
 
 	max_loss_vals = [-1] * len(runs)
 	for run_idx, run_dir in enumerate(runs):
@@ -185,16 +198,26 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 		map_filtered  = map_vals[valid]
 		phc_filtered  = phc_vals[valid]
 
-		if smooth_sigma != -1: 
+		if smooth_sigma > 0:
 			loss_filtered = gaussian_filter1d(loss_filtered, sigma=smooth_sigma)
 			map_filtered  = gaussian_filter1d(map_filtered , sigma=smooth_sigma)
 			phc_filtered  = gaussian_filter1d(phc_filtered , sigma=smooth_sigma)
 
 		max_loss_vals[run_idx] = np.max(loss_filtered)
 
-		line, = ax_loss.plot(x, loss_filtered, color=color, linewidth=3)
-		ax_map.plot(x,		map_filtered,  color=color, linewidth=3)
-		ax_phc.plot(x,		phc_filtered,  color=color, linewidth=3)
+		if 'noise-undersampling' in str(runs[0]) and ENABLE_NOISE_UNDERSAMPLING_DASHED_LINES:
+			if params['prob'] == 0.0:
+				dashes = (None, None)
+			else:
+				pp = int(params['prob'] * 16)
+				dashes = [pp, pp/4, pp/2, pp/4, pp/2, pp/4]
+			#if params['type'] == 0.5:
+		else:
+			dashes = (None, None)
+		print(f'{dashes = }')
+		line, = ax_loss.plot(x, loss_filtered, color=color, linewidth=3, label=friendly_name, dashes=dashes)
+		ax_map.plot(x,		map_filtered,  color=color, linewidth=3, label=friendly_name, dashes=dashes)
+		ax_phc.plot(x,		phc_filtered,  color=color, linewidth=3, label=friendly_name, dashes=dashes)
 
 		handles.append(line)
 		labels.append(friendly_name)
@@ -212,7 +235,7 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 
 	fig.legend(handles, labels, bbox_to_anchor=(1.05, 1), loc='upper left', title='Runs')
 	plt.tight_layout()
-	plt.savefig(f"{experiment_group}_{class_name}_metrics.png", bbox_inches='tight')
+	plt.savefig(f"{experiment_group}-{class_name}.png", bbox_inches='tight')
 	plt.close()
 
 for experiment_group in EXPERIMENT_GROUPS:
