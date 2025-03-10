@@ -13,11 +13,8 @@ from scipy.ndimage.filters import gaussian_filter1d
 # Configuration
 EXPERIMENT_GROUPS = ['rotations-2k-samples', 'noise-undersampling-2k-samples', 'PointNeXt_XXL-rotations-2k-samples']
 #EXPERIMENT_GROUPS = ['PointNeXt_XXL-rotations-2k-samples']
-'''
 CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 
            'lemniscate', 'm_convexities', 'mouth_curve', 'revolution', 'square']
-'''
-CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 'lemniscate', ]
 BASE_DIR = '../../logs'
 CLIP_LOSS_AT = 2  # Clip loss at this value
 SMOOTH_SIGMA = 2
