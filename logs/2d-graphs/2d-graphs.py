@@ -14,7 +14,9 @@ from scipy.ndimage.filters import gaussian_filter1d
 EXPERIMENT_GROUPS = ['rotations-2k-samples', 'noise-undersampling-2k-samples', 'PointNeXt_XXL-rotations-2k-samples']
 #EXPERIMENT_GROUPS = ['PointNeXt_XXL-rotations-2k-samples']
 CLASSES = ['astroid', 'citrus', 'cylinder', 'egg_keplero', 'geometric_petal', 
-           'lemniscate', 'm_convexities', 'mouth_curve', 'revolution', 'square']
+		'lemniscate', 'm_convexities', 'mouth_curve', 'revolution', 'square']
+CLS_NAMES = {'astroid': 'Astroid', 'citrus': 'Citrus', 'cylinder': 'Cylinder', 'egg_keplero': 'Egg of Keplero', 'geometric_petal': 'Geometric Petal',
+		'lemniscate': 'Lemniscate', 'm_convexities': 'm-Convexities', 'mouth_curve': 'Mouth Curve', 'revolution': 'Revolution', 'square': 'Square'}
 BASE_DIR = '../../logs'
 CLIP_LOSS_AT = 2  # Clip loss at this value
 SMOOTH_SIGMA = 2
@@ -146,7 +148,9 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 		exp_title = f"rotations (PointNeXt XXL) - 2k samples"
 	else:
 		exp_title = f"rotations (PointNet) - 2k samples"
-	fig.suptitle(f"Experiment: {exp_title}, Class: {class_name}")
+	suptitle = fig.suptitle(f"Experiment: {exp_title} - class: {CLS_NAMES[class_name]}")
+	suptitle_font = {'fontsize': 24}
+	suptitle.set(**suptitle_font)
 
 	ax_loss.set_ylabel('Validation Loss'+ f' (clipped at {CLIP_LOSS_AT})' if CLIP_LOSS_AT > 0 else '')
 	ax_map.set_ylabel('Val. mAP')
@@ -222,6 +226,8 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 	for ax_idx, ax in enumerate([ax_loss, ax_map, ax_phc]):
 		ax.set_xlabel('Epochs')
 		ax.grid(True)
+		plt.setp(ax.get_xticklabels(), fontsize=12)
+		plt.setp(ax.get_yticklabels(), fontsize=12)
 		if ax_idx == 0:
 			if clip_loss_at > 0:
 				ax.set_ylim(-0.004, clip_loss_at + 0.01*clip_loss_at)
@@ -230,7 +236,8 @@ def process_class(experiment_group, class_name, clip_loss_at=-1, smooth_sigma=-1
 		else:
 			ax.set_ylim(-0.05, 1.05)
 
-	fig.legend(handles, labels, bbox_to_anchor=(1.05, 1), loc='upper left', title='Runs')
+	legend = fig.legend(handles, labels, prop={'size': 10}, bbox_to_anchor=(1.00, 1), loc='upper left', title='Runs')
+	plt.setp(legend.get_title(), fontsize=18)
 	plt.tight_layout()
 	plt.savefig(f"{experiment_group}-{class_name}.png", bbox_inches='tight')
 	plt.close()
